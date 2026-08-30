@@ -1,0 +1,34 @@
+name: Publish
+
+on:
+  release: { types: [published] }
+  workflow_dispatch:
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    # id-token 是 Trusted Publishing 的全部凭据来源：这一行让 Actions 能拿到一枚
+    # 短命的 OIDC 身份令牌，npm 用它换发布权限。仓库里不存任何 npm token。
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      # Trusted Publishing 要 npm ≥ 11.5.1。Node 24 自带的版本目前够，但它会随
+      # runner 镜像漂——显式装一次，免得哪天镜像回退把发布悄悄退回 token 模式。
+      - run: npm install -g npm@latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+      # 没有 NODE_AUTH_TOKEN：npm 认出自己跑在配置好的 Trusted Publisher 里，
+      # 自己走 OIDC 换票。这也是这个包能用 passkey 做 2FA 的原因——
+      # token 那条路要么被 2FA 挡住（EOTP），要么得建一个能绕过 2FA 的长期凭据，
+      # 而 npm 自己在建 token 的页面上就写着「有安全风险，自动化请改用 Trusted Publishing」。
+      #
+      # 显式带上 --registry：仓库 .npmrc 把安装源钉到了 npmmirror（只读镜像），
+      # 发布必须打到 npm 官方源。publishConfig 也钉了一道，这里是第二道保险。
+      - run: npm publish --access public --registry https://registry.npmjs.org

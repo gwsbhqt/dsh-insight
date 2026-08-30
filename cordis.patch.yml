@@ -1,0 +1,5 @@
+# dsh-insight bundle 补丁层：host 半是包主入口（cordis 函数插件）；
+# package.json 的 dsh.client 声明让 web 端加载 ./client 产物作为浏览器半。
+- insert:
+    - id: dsh-insight
+      name: "@gwsbhqt/dsh-insight"

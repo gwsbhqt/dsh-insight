@@ -1,0 +1,7 @@
+# 不自动安装 peer：@deepseek-ai/* 的运行时身份由宿主 dsh 提供，
+# 本仓库只需要直接 devDeps 做类型检查；auto-install 还会把 ^x.y.z-rc.N 的下界错算成 release。
+autoInstallPeers: false
+
+allowBuilds:
+  # tailwind CLI 的可选 native watcher；没有它也能跑，不批它的构建脚本。
+  '@parcel/watcher': false

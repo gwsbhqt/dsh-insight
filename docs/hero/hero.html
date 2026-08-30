@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>dsh-insight hero</title>
+<style>
+  /* README 横幅：底图是生成的分层示意，主体是产品真实界面的裁切。
+     字体一律用系统栈——横幅在本机渲染成图，不必冒网络字体加载不上的险。 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ink: #0B0C0E;
+    --muted: #6B7280;
+    --faint: #9CA3AF;
+    --line: rgba(0,0,0,.08);
+    --brand: #3B82F6;
+    --ground: #FBFBFC;
+    --sans: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  body {
+    width: 1600px; height: 840px;
+    background: var(--ground);
+    font-family: var(--sans);
+    color: var(--ink);
+    position: relative; overflow: hidden;
+  }
+  /* 生成的底图：挪到右半边给左边的字让位，压淡到只剩结构感。
+     压在字上会两败俱伤——图看不清，字也变脏。 */
+  .bg {
+    position: absolute; left: 902px; top: -6px; width: 700px; height: 420px;
+    background: url('bg.png') no-repeat left top / 1180px auto;
+    opacity: .46;
+    -webkit-mask-image: linear-gradient(96deg, transparent 0%, #000 16%, #000 66%, transparent 96%);
+  }
+  .wrap { position: relative; padding: 54px 72px 0; }
+
+  .brandline { display: flex; align-items: baseline; gap: 16px; }
+  .mark {
+    font-size: 46px; font-weight: 700; letter-spacing: .04em;
+  }
+  .pkg {
+    font-family: var(--mono); font-size: 19px; color: var(--faint);
+    letter-spacing: -.01em;
+  }
+  .tagline {
+    margin-top: 14px; font-size: 27px; line-height: 1.4; font-weight: 500;
+    color: #1F2328; max-width: 860px;
+  }
+  .sub {
+    margin-top: 9px; font-size: 16.5px; color: var(--muted); line-height: 1.6; max-width: 860px;
+  }
+  .axes { margin-top: 20px; display: flex; gap: 9px; }
+  .axis {
+    font-size: 14.5px; padding: 5px 13px; border-radius: 999px;
+    border: 1px solid var(--line); color: #374151; background: #fff;
+  }
+  .axis.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  /* 产品界面：略微下沉出画，暗示「还有更多」 */
+  .shot {
+    position: absolute; left: 72px; right: 72px; top: 344px;
+    border-radius: 14px 14px 0 0;
+    border: 1px solid rgba(0,0,0,.10); border-bottom: none;
+    box-shadow: 0 30px 70px -24px rgba(15,23,42,.28), 0 4px 14px rgba(15,23,42,.06);
+    overflow: hidden; background: #fff;
+  }
+  .shot img { display: block; width: 100%; }
+</style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="wrap">
+    <div class="brandline">
+      <span class="mark">洞察</span>
+      <span class="pkg">@gwsbhqt/dsh-insight</span>
+    </div>
+    <p class="tagline">一个 DeepSeek Harness profile，到底由什么组成。</p>
+    <p class="sub">每个插件、服务、工具、模型是哪来的，被哪一层配置插入或禁用，此刻在不在跑——一块屏幕全都回答。只读，不改你任何东西。</p>
+    <div class="axes">
+      <span class="axis">按配置</span>
+      <span class="axis on">按插件</span>
+      <span class="axis">按服务</span>
+      <span class="axis">按工具</span>
+      <span class="axis">按模型</span>
+    </div>
+  </div>
+  <div class="shot"><img src="shot.png" alt=""></div>
+</body>
+</html>

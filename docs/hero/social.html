@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>social</title><style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width:1280px; height:640px; background:#FBFBFC; position:relative; overflow:hidden;
+    font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif; color:#0B0C0E;
+    display:flex; flex-direction:column; justify-content:center; padding:0 84px;
+  }
+  .bg { position:absolute; left:640px; top:96px; width:660px; height:420px;
+        background:url('bg.png') no-repeat left top / 1150px auto; opacity:.5;
+        -webkit-mask-image:linear-gradient(96deg,transparent 0%,#000 14%,#000 70%,transparent 98%); }
+  .in { position:relative; }
+  .row { display:flex; align-items:baseline; gap:18px; }
+  h1 { font-size:64px; letter-spacing:.04em; }
+  .pkg { font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:21px; color:#9CA3AF; }
+  p.t { margin-top:26px; font-size:31px; font-weight:500; line-height:1.35; max-width:620px; color:#1F2328; }
+  p.s { margin-top:14px; font-size:18px; color:#6B7280; line-height:1.6; max-width:600px; }
+  .axes { margin-top:34px; display:flex; gap:10px; }
+  .axis { font-size:16px; padding:7px 16px; border-radius:999px; border:1px solid rgba(0,0,0,.09);
+          color:#374151; background:#fff; }
+  .axis.on { background:#0B0C0E; color:#fff; border-color:#0B0C0E; }
+</style></head><body>
+  <div class="bg"></div>
+  <div class="in">
+    <div class="row"><h1>洞察</h1><span class="pkg">@gwsbhqt/dsh-insight</span></div>
+    <p class="t">一个 DeepSeek Harness profile，<br>到底由什么组成。</p>
+    <p class="s">谁装进来的、被哪一层禁掉的、此刻在不在跑。只读。</p>
+    <div class="axes">
+      <span class="axis">按配置</span><span class="axis on">按插件</span>
+      <span class="axis">按服务</span><span class="axis">按工具</span><span class="axis">按模型</span>
+    </div>
+  </div>
+</body></html>

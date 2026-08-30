@@ -1,0 +1,158 @@
+/*
+ * dsh-insight 浏览器半的 Tailwind 4 入口。三条硬约束（来自"这份 CSS 会被注入宿主页面"）：
+ * 1. 不引 preflight——那是全局 reset，会掀翻 dsh 自己的样式。
+ * 2. --color-*: initial 清掉 Tailwind 默认调色板，颜色只准来自房子的 --dsw-alias-*。
+ * 3. 必须是 @theme inline：房子的 token 定义在 body 而非 :root，非 inline 的映射
+ *    会计算期失效——症状是布局全对、颜色全黑、无报错。
+ */
+@layer theme, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/*
+ * 面板作用域裸元素 reset（不引全局 preflight 的替代）：宿主不 reset <button>，
+ * 裸按钮会拿到浏览器默认的 2px outset 边框和独立字体。收编范围仅限我们自己的
+ * 面板根内；ui-primitives 组件的样式不带 layer，优先级高于 layered 规则，不受影响；
+ * 我们自己的元素上 utilities 层在 components 之后，显式类照常生效。
+ */
+@layer components {
+  /* 作用域内统一 border-box：房子 preflight 的盒模型覆盖不到我们（portal 到 body 的
+     悬浮抽屉更拿不到），content-box 会让 paddingLeft 缩进把行宽顶出容器右缘 */
+  .dsh-insight, .dsh-insight *, .dsh-insight-dock, .dsh-insight-dock * {
+    box-sizing: border-box;
+  }
+
+  /* 路径头截断：rtl 方向让溢出与省略号发生在头部，尾部（文件名）始终完整可见 */
+  .dsh-truncate-head {
+    direction: rtl;
+    text-align: left;
+  }
+
+  /* 预览对话框代码区软换行：ReadBlock 内部用 whitespace-pre，覆盖成 pre-wrap 允许断行 */
+  .dsh-soft-wrap pre,
+  .dsh-soft-wrap code,
+  .dsh-soft-wrap span {
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+  }
+  /* 房子 JsonTree 折叠时在 key 后内联内容预览（_preview_/_previewProperty_/_previewEllipsis_），
+     我们的表达是"内容只在展开后可见"：面板作用域内藏掉预览段，expandable 三角不受影响 */
+  .dsh-insight [class*="_preview_"],
+  .dsh-insight [class*="_previewProperty_"],
+  .dsh-insight [class*="_previewEllipsis_"] {
+    display: none;
+  }
+
+  /* Disclosure chevron：直接后代选择器，嵌套 Disclosure 互不影响（group-open 会被祖先误匹配） */
+  .dsh-disclosure > summary .dsh-chevron {
+    transition: transform 150ms;
+  }
+  .dsh-disclosure[open] > summary .dsh-chevron {
+    transform: rotate(90deg);
+  }
+
+  /* 跳转目标行的闪烁提示：眨两下，然后归于平静。
+   * 不能只淡出底色——跳过去的行同时是选中行，它本来就带着 hover 底色，
+   * 「从 hover 淡到透明」在它身上等于没闪。所以底色之外再加一道内描边。 */
+  @keyframes dsh-row-flash {
+    0%, 14%, 42%, 56% {
+      background-color: color-mix(in srgb, var(--dsw-static-blue-500) 17%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dsw-static-blue-500) 60%, transparent);
+    }
+    28% {
+      background-color: transparent;
+      box-shadow: inset 0 0 0 1px transparent;
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: inset 0 0 0 1px transparent;
+    }
+  }
+  .dsh-row-flash {
+    animation: dsh-row-flash 1.1s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dsh-row-flash { animation-duration: 1ms; }
+  }
+
+  /* ReadBlock 自带 margin-top:16px（为对话流间距设计），预览窗里已由容器 padding 负责 */
+  .dsh-soft-wrap > [class*="_block_"] {
+    margin-top: 0;
+  }
+
+  .dsh-insight button {
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+}
+
+@source "./**/*.{ts,tsx}";
+
+@theme inline {
+  --color-*: initial;
+
+  /* 文字梯度 */
+  --color-primary: var(--dsw-alias-label-primary);
+  --color-secondary: var(--dsw-alias-label-secondary);
+  --color-tertiary: var(--dsw-alias-label-tertiary);
+  --color-caption: var(--dsw-alias-label-caption);
+  --color-dimmed: var(--dsw-alias-label-dimmed);
+
+  /* 状态 */
+  --color-brand: var(--dsw-alias-brand-primary);
+  --color-ok: var(--dsw-alias-state-success-primary);
+  --color-err: var(--dsw-alias-state-error-primary);
+  --color-warn: var(--dsw-alias-state-warn-label);
+
+  /* 面与线 */
+  --color-surface: var(--dsw-alias-bg-layer-1);
+  --color-surface-2: var(--dsw-alias-bg-layer-2);
+  --color-line: var(--dsw-alias-border-l1);
+  --color-line-2: var(--dsw-alias-border-l2);
+  --color-hover: var(--dsw-alias-interactive-bg-hover);
+
+  /* hover 字体淡蓝（亮暗主题同值的静态色板） */
+  --color-brand-bright: var(--dsw-static-blue-500);
+
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ===== 房子组件行为修正（unlayered + 更高优先级才能赢过房子的 unlayered 样式，勿移进 @layer） ===== */
+
+/* JsonTree 根自带 overflow:auto + overscroll-behavior:contain——内容刚好放下时它是假滚动容器，
+ * contain 切断滚动链：光标停在树上滚轮直接死掉（面板大段死区）。面板里树从不自滚，交给外层。 */
+.dsh-insight [class*="_root_"] {
+  overflow: visible;
+  overscroll-behavior: auto;
+}
+
+/* 房子全局 p 样式带 12px 上下 margin（为文章流设计）——面板里行距全由 flex gap 负责，统一清零 */
+.dsh-insight p {
+  margin: 0;
+}
+
+/* tooltip 气泡换行：overflow-wrap:break-word 只在词溢出时断且不改固有宽度，长路径折行后右侧留白；
+ * break-all 让每行填满再折 */
+.dsh-insight [class*="_bubble_"] {
+  word-break: break-all;
+}
+
+/* 重启图标的自转：不依赖 Tailwind 的 animate-spin（--color-*: initial 之外，
+   我们对 theme 的裁剪范围随时可能变），自己写一份最稳。 */
+@layer components {
+  @keyframes dsh-spin {
+    to { transform: rotate(360deg); }
+  }
+  .dsh-spin {
+    animation: dsh-spin 1s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dsh-spin { animation: none; }
+  }
+}

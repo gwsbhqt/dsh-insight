@@ -1,0 +1,15 @@
+name: Feature request / 功能建议
+description: A question about your profile the panel cannot answer yet / 面板还回答不了的关于你 profile 的问题
+labels: [enhancement]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: The question you are trying to answer / 你想弄清楚的问题
+      description: "Phrase it as a question about your setup — that is how the axes get designed. / 用一个关于你自己配置的问题来描述，这些轴就是这么设计出来的。"
+      placeholder: "Which layer disabled tool-bash, and is the copy inside the agent preset still running?"
+    validations: { required: true }
+  - type: textarea
+    id: today
+    attributes:
+      label: How you answer it today / 你现在是怎么弄清楚的

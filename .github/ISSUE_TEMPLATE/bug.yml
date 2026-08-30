@@ -1,0 +1,27 @@
+name: Bug report / 问题反馈
+description: Something in the panel is wrong or missing / 面板里有哪里不对或缺东西
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened / 发生了什么
+      description: A screenshot of the panel usually says it fastest. / 截一张面板的图往往最快说清楚。
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected / 你预期的是什么
+    validations: { required: true }
+  - type: input
+    id: versions
+    attributes:
+      label: Versions / 版本
+      description: "`dsh --version` and the plugin version / `dsh --version` 与插件版本"
+      placeholder: "dsh 0.1.1-rc.2 · @gwsbhqt/dsh-insight 0.1.0"
+    validations: { required: true }
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else / 其他
+      description: Console errors, an unusual profile layout, whatever seems relevant. / 控制台报错、特殊的 profile 结构，任何你觉得相关的。

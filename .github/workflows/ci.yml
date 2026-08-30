@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+
+      # 产物是提交进仓库的（安装方直接用，不跑构建）。构建完必须和仓库里的一致，
+      # 否则用户装到的是上一次构建的旧代码——这种事没有报错，只会静默地行为不对。
+      - name: 产物与仓库一致
+        run: |
+          if ! git diff --quiet -- lib; then
+            echo "::error::lib/ 与源码不同步：本地跑 pnpm run build 后把产物一起提交"
+            git --no-pager diff --stat -- lib
+            exit 1
+          fi

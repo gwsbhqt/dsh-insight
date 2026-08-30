@@ -1,0 +1,10 @@
+*.map
+.DS_Store
+node_modules
+.tmp
+*.tgz
+
+# 截图原片（2x，3MB+）：由 scripts/shoot.mjs 重新生成，不进仓库；
+# 仓库里只留 scripts/optimize-images.mjs 压过的成品
+docs/assets/raw/
+docs/hero/shot.png
