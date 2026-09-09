@@ -315,6 +315,25 @@ export const zh = {
   'settings.effective': '当前生效',
   'settings.base': '插件默认',
   'settings.user': '你的覆盖',
+
+  // dsh 0.1.2 起 ui-primitives 不再自带文案，ReadBlock / JsonTree 的界面字串由调用方给
+  'read.window': '显示 {shown} 行，共 {total} 行',
+  'read.copy': '复制',
+  'read.copied': '已复制',
+  'read.collapse': '折叠',
+  'read.collapseAria': '折叠中间部分',
+  'read.expand': '展开 {count} 行',
+  'read.expandAria': '展开中间隐藏的 {count} 行',
+  'json.copyValue': '复制值',
+  'json.copyJson': '复制 JSON',
+  'json.copyPath': '复制路径',
+  'json.copyPrettyJson': '复制 JSON（带缩进）',
+  'json.copyCompactJson': '复制 JSON（压缩成一行）',
+  'json.copied': '已复制',
+  'json.copyFailed': '复制失败',
+  'json.collapseNode': '折叠',
+  'json.expandNode': '展开',
+  'json.copyButtonTitle': '{action}',
 } as const
 
 export type InsightLocaleKey = keyof typeof zh
@@ -610,6 +629,24 @@ export const en: Record<InsightLocaleKey, string> = {
   'settings.effective': 'Effective',
   'settings.base': 'Plugin default',
   'settings.user': 'Your override',
+
+  'read.window': 'Showing {shown} of {total} lines',
+  'read.copy': 'Copy',
+  'read.copied': 'Copied',
+  'read.collapse': 'Collapse',
+  'read.collapseAria': 'Collapse the middle',
+  'read.expand': 'Expand {count} lines',
+  'read.expandAria': 'Expand {count} hidden lines',
+  'json.copyValue': 'Copy value',
+  'json.copyJson': 'Copy JSON',
+  'json.copyPath': 'Copy path',
+  'json.copyPrettyJson': 'Copy pretty JSON',
+  'json.copyCompactJson': 'Copy compact JSON',
+  'json.copied': 'Copied',
+  'json.copyFailed': 'Copy failed',
+  'json.collapseNode': 'Collapse',
+  'json.expandNode': 'Expand',
+  'json.copyButtonTitle': '{action}',
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

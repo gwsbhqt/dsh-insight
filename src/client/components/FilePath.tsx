@@ -5,13 +5,14 @@
  * tooltip 被 overflow-y-auto 的滚动容器裁掉（长路径反而看不全），且气泡飘到下方无关内容上。
  * 路径直接换行就没这些问题，还能选中、能读全。 */
 import { useState } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { ReadBlock, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import { callInsight } from '../rpc.ts'
 import { Highlight } from './Highlight.tsx'
 import { CheckIcon, CopyIcon, ICON_BTN, IdeIcon } from './icons.tsx'
 import { PanelStatus } from './PanelStatus.tsx'
+import { readBlockLabels } from './primitiveLabels.ts'
 import { PreviewModal } from './PreviewModal.tsx'
 
 export interface FilePreview {
@@ -105,6 +106,7 @@ export function FilePath({ ctx, t, path, highlight, isDir = false, previewable =
             <div className="dsh-soft-wrap">
             <ReadBlock
               label={fileName}
+              labels={readBlockLabels(t)}
               lines={state.preview.content.split('\n').map((text, i) => ({ number: i + 1, text }))}
               totalLines={state.preview.content.split('\n').length}
               {...(lang !== undefined ? { lang } : {})}

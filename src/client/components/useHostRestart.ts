@@ -21,7 +21,7 @@
  *    所以照常显示、按不动，并把最可能的原因直说。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { HostStatus, RestartAck } from '../../shared/types.ts'
 import { callInsight, InsightRpcError } from '../rpc.ts'

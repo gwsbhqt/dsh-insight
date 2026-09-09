@@ -14,7 +14,7 @@
  *   问不到状态 —— 多半是 host 比界面旧，手动重启一次 dsh 就好；
  *   还没问到   —— 刚挂上来，等一下就有了，这时候什么都不该说。
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { HelpIcon, RestartIcon } from './icons.tsx'
 import { useHostRestart } from './useHostRestart.ts'

@@ -2,7 +2,10 @@
  * dsh-insight client 半：设置面板的「洞察」section。
  * 模块表懒 CJS：本文件是 factory 体，exports 的 name/inject/apply 由浏览器 Loader 消费。
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+// 纯声明合并：ctx.slots 的 Context 增强。dsh 0.1.2 起由 ui-renderer 提供
+// （原先在 dsh-client-runtime，那个包已下线）。类型导入会被擦除，不进 bundle。
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // 纯声明合并：把 'settings.section' 带上 SlotMap。类型导入会被擦除，不进 bundle。
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // 纯声明合并：ctx.locale 的 Context 增强。类型导入会被擦除，不进 bundle。

@@ -1,5 +1,5 @@
 /** RPC 调用封装：拿 connection 面、解信封。 */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { INSIGHT_CHANNEL, type InsightEndpoint, type InsightResult } from '../shared/types.ts'
 
 /** connection 面的最小本地声明（client 半按需取面，形状对齐 dsh-client-connection 的 ClientConnectionRpc）。 */

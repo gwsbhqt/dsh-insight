@@ -19,7 +19,7 @@ export function apply(ctx: Context): void {
   // 只改运行时内存里的原型，不写任何文件；见 tool-observer.ts 的头注释。
   ctx.effect(() => installToolObserver(ctx.get('tools')), 'dsh-insight: tool observer')
   ctx.effect(
-    () => ctx.connection.rpc.handle(INSIGHT_CHANNEL, createInsightHandler(ctx), { authority: 'loopback' }),
+    () => ctx.connection.rpc.handle(INSIGHT_CHANNEL, createInsightHandler(ctx)),
     'dsh-insight: rpc channel',
   )
 }

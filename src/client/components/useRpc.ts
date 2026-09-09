@@ -1,6 +1,6 @@
 /** tab 首次激活拉一次 + 手动刷新；无订阅无轮询。 */
 import { useCallback, useEffect, useState } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { InsightEndpoint } from '../../shared/types.ts'
 import { callInsight } from '../rpc.ts'
 

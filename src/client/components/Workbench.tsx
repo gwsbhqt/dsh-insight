@@ -19,7 +19,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { buildDossiers, walkDossiers, type PluginDossier } from '../../shared/dossier.ts'
 import { buildGraphIndex } from '../../shared/graph.ts'

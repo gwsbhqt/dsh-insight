@@ -14,7 +14,7 @@
  * （buildSummary 本来就是 shared 纯函数），并明说一句「host 比前端旧」。
  */
 import { useMemo, useState } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { buildSummary } from '../../shared/summary.ts'
 import type { ConfigFileInfo, FinalConfig, InsightSummary, LayerView, ModelInventory, PluginGraphNode, PluginNode, PresetInventory, SettingsView, ToolInventory } from '../../shared/types.ts'

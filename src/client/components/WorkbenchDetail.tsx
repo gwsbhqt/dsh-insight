@@ -8,7 +8,7 @@
  */
 import type { ReactNode } from 'react'
 import { JsonTree } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PluginDossier } from '../../shared/dossier.ts'
 import { buildGraphIndex, impactHops } from '../../shared/graph.ts'
@@ -19,6 +19,7 @@ import type { ToolInventory } from '../../shared/types.ts'
 import { FilePath } from './FilePath.tsx'
 import { KIND_BAR, KIND_ORDER } from './kindTone.ts'
 import { PanelStatus } from './PanelStatus.tsx'
+import { jsonTreeLabels } from './primitiveLabels.ts'
 import { TONE_TEXT } from './Tag.tsx'
 import { disabledBy } from './Workbench.tsx'
 import { basename, labelOf, shortOf, type Selection } from './WorkbenchList.tsx'
@@ -249,7 +250,7 @@ function PluginDetail({ ctx, t, d, query, index, byId, layers, onSelect, userLay
 
       {d.intent?.config !== null && d.intent?.config !== undefined && Object.keys(d.intent.config as object).length > 0 && (
         <Section label={t('detail.finalConfig')}>
-          <JsonTree data={d.intent.config as object} label={d.shortId} />
+          <JsonTree data={d.intent.config as object} label={d.shortId} labels={jsonTreeLabels(t)} />
         </Section>
       )}
     </div>
@@ -428,7 +429,7 @@ function JsonPanels({ t, ns }: { t: TranslateNS<'dsh-insight'>; ns: NonNullable<
       {rows.map(([label, value]) => (
         <div key={label} className="flex flex-col gap-1">
           <span className="text-[11.5px] text-tertiary">{label}</span>
-          <JsonTree data={(value ?? null) as object} label={label} />
+          <JsonTree data={(value ?? null) as object} label={label} labels={jsonTreeLabels(t)} />
         </div>
       ))}
     </div>
