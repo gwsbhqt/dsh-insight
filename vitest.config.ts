@@ -11,6 +11,8 @@ export default defineConfig({
     alias: {
       // 构建期由 tsdown 注入的虚拟模块；测试用空产物桩。
       'virtual:tailwind-css': fileURLToPath(new URL('./tests/stubs/virtual-tailwind-css.ts', import.meta.url)),
+      // 平台模块：构建期 external，测试里桩掉——见 tests/stubs/ui-primitives.tsx。
+      '@deepseek-ai/dsh-client-ui-primitives': fileURLToPath(new URL('./tests/stubs/ui-primitives.tsx', import.meta.url)),
     },
   },
   test: {
