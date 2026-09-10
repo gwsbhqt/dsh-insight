@@ -32,7 +32,20 @@ function fakeCtx() {
       return (key: string) => (state.current === 'zh' ? zh : en)[key as keyof typeof zh]
     },
   }
-  return { ctx: { slots, locale } as never, registrations, localeRegistrations, registered, state }
+  // ctx.get / ctx.effect：inspector 的记账补丁走这两个（真实运行时由 cordis 提供）
+  const effects: string[] = []
+  const services: Record<string, unknown> = { slots }
+  const ctx = {
+    slots,
+    locale,
+    get: (name: string) => services[name],
+    effect: (execute: () => () => void, label?: string) => {
+      effects.push(label ?? '')
+      const dispose = execute()
+      return dispose
+    },
+  }
+  return { ctx: ctx as never, registrations, localeRegistrations, registered, state, effects }
 }
 
 it('注册 settings.section 且 dispose 后摘除', () => {
@@ -59,4 +72,12 @@ it('侧栏那一条的名字跟着语言走', () => {
   expect(read()).toBe(zh['section.label'])
   state.current = 'en'
   expect(read()).toBe(en['section.label'])
+})
+
+it('inspector：浮层注册进 shell.overlay，记账补丁挂在插件生命周期上', () => {
+  const { ctx, registrations, effects } = fakeCtx()
+  apply(ctx)
+  expect(registrations.some(r => r.name === 'shell.overlay' && r.id === 'insight-inspector')).toBe(true)
+  // 补丁走 ctx.effect：插件卸载时按栈还原，不留在宿主原型上
+  expect(effects.some(label => label.includes('registrant probe'))).toBe(true)
 })

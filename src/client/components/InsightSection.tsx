@@ -17,10 +17,12 @@ import { useMemo, useState } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { buildSummary } from '../../shared/summary.ts'
-import type { ConfigFileInfo, FinalConfig, InsightSummary, LayerView, ModelInventory, PluginGraphNode, PluginNode, PresetInventory, SettingsView, ToolInventory } from '../../shared/types.ts'
+import type { InsightSummary } from '../../shared/types.ts'
+import { InspectorRow } from './InspectorRow.tsx'
 import { PanelStatus } from './PanelStatus.tsx'
 import { RestartRow } from './RestartRow.tsx'
 import { SummaryCard } from './SummaryCard.tsx'
+import { useInsightSources } from './useInsightSources.ts'
 import { useRpc } from './useRpc.ts'
 import { Workbench } from './Workbench.tsx'
 
@@ -35,39 +37,25 @@ export function InsightSection({ ctx, t }: InsightSectionProps) {
 
   const stale = !summary.loading && summary.error !== undefined
 
-  // 四源：打开工作台时要；host 旧到没有 summary 端点时也要（退回客户端自算）
+  // 九源：打开工作台时要；host 旧到没有 summary 端点时也要（退回客户端自算）。
+  // 同一套源 inspector 那份工作台也用，所以抽在 useInsightSources 里。
   const need = open || stale
-  const tree = useRpc<PluginNode[]>(ctx, 'plugins/tree', need)
-  const graph = useRpc<PluginGraphNode[]>(ctx, 'plugins/graph', need)
-  const final = useRpc<FinalConfig>(ctx, 'config/final', need)
-  const settings = useRpc<SettingsView[]>(ctx, 'settings/list', need)
-  const layers = useRpc<LayerView[]>(ctx, 'config/layers', need)
-  const files = useRpc<ConfigFileInfo[]>(ctx, 'files/list', need)
-  const inventory = useRpc<ToolInventory>(ctx, 'plugins/tools', need)
-  const sources = [tree, graph, final, settings, layers, files, inventory]
-  // 模型清单不进 sources：host 比前端旧时这个端点会 404，那只该让「按模型」那一轴
-  // 空着并说明原因，不该把整个工作台染红——同 summary 端点的教训。
-  const models = useRpc<ModelInventory>(ctx, 'models/list', need)
-  // 预设清单同理不进 sources：host 比前端旧时它会 404，那只该让「按预设」这一轴
-  // 空着并说明原因，不该把整个工作台染红
-  const presets = useRpc<PresetInventory>(ctx, 'presets/list', need)
+  const sources = useInsightSources(ctx, need)
 
   const effective = useMemo((): InsightSummary | undefined => {
     if (summary.data !== undefined) return summary.data
     if (!stale) return undefined
-    if (tree.data === undefined || graph.data === undefined || settings.data === undefined || layers.data === undefined) return undefined
-    return buildSummary(tree.data, graph.data, settings.data, layers.data, final.data)
-  }, [summary.data, stale, tree.data, graph.data, settings.data, layers.data, final.data])
+    if (sources.tree === undefined || sources.graph === undefined || sources.settings === undefined || sources.layers === undefined) return undefined
+    return buildSummary(sources.tree, sources.graph, sources.settings, sources.layers, sources.final)
+  }, [summary.data, stale, sources.tree, sources.graph, sources.settings, sources.layers, sources.final])
 
   const reloadAll = () => {
     summary.reload()
-    models.reload()
-    presets.reload()
-    for (const r of sources) r.reload()
+    sources.reload()
   }
 
   // 退回路径也拿不到数据才算真失败（host 连老端点都没有 = 插件没装上）
-  const fatal = stale && effective === undefined && sources.every(r => !r.loading) && sources.some(r => r.error !== undefined)
+  const fatal = stale && effective === undefined && !sources.loading && sources.error !== undefined
 
   return (
     <>
@@ -82,24 +70,26 @@ export function InsightSection({ ctx, t }: InsightSectionProps) {
           action={<RestartRow ctx={ctx} t={t} />}
         />
       )}
+      {/* inspector 是个会改变页面手感的开关，所以单独一块，不混进只读的摘要卡 */}
+      <InspectorRow t={t} />
       <Workbench
         ctx={ctx}
         t={t}
         open={open}
         onClose={() => setOpen(false)}
-        tree={tree.data}
-        graph={graph.data}
-        final={final.data}
-        settings={settings.data}
-        layers={layers.data}
-        files={files.data}
-        inventory={inventory.data}
-        models={models.data}
-        modelsStale={!models.loading && models.error !== undefined}
-        presets={presets.data}
-        presetsStale={!presets.loading && presets.error !== undefined}
-        loading={sources.some(r => r.loading)}
-        error={sources.map(r => r.error).find(e => e !== undefined)}
+        tree={sources.tree}
+        graph={sources.graph}
+        final={sources.final}
+        settings={sources.settings}
+        layers={sources.layers}
+        files={sources.files}
+        inventory={sources.inventory}
+        models={sources.models}
+        modelsStale={sources.modelsStale}
+        presets={sources.presets}
+        presetsStale={sources.presetsStale}
+        loading={sources.loading}
+        error={sources.error}
         onReload={reloadAll}
       />
     </>

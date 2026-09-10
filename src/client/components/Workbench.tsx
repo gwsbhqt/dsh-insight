@@ -60,6 +60,11 @@ export interface WorkbenchProps {
   loading: boolean
   error?: string | undefined
   onReload: () => void
+  /**
+   * 外部指定的落点：数据到齐后自动跳过去。inspector 点了界面上某块 UI 就走
+   * 这条——它开的工作台不在设置页那棵树里，够不着这里的 jump()。
+   */
+  initialJump?: Selection | undefined
 }
 
 /**
@@ -119,7 +124,7 @@ export function Workbench(props: WorkbenchProps) {
   )
 }
 
-function WorkbenchBody({ ctx, t, onClose, tree, graph, final, settings, layers, files, inventory, models, modelsStale, presets, presetsStale, loading, error, onReload }: WorkbenchProps) {
+function WorkbenchBody({ ctx, t, onClose, tree, graph, final, settings, layers, files, inventory, models, modelsStale, presets, presetsStale, loading, error, onReload, initialJump }: WorkbenchProps) {
   const [axis, setAxis] = useState<Axis>('plug')
   const [filter, setFilter] = useState<FilterId>('all')
   const [query, setQuery] = useState('')
@@ -347,6 +352,19 @@ function WorkbenchBody({ ctx, t, onClose, tree, graph, final, settings, layers, 
     setSelection(next)
     setReveal(n => n + 1)
   }
+
+  /**
+   * 外部落点只跳一次：跳完使用者多半要自己切轴、换选中，不能每次重渲染都被
+   * 拽回去。要等 tree 到齐——jump 靠它算祖先链，空着跳过去是一片没展开的树。
+   * initialJump 换了新值（又点了一块别的 UI）才允许再跳。
+   */
+  const consumedJump = useRef<Selection | undefined>(undefined)
+  useEffect(() => {
+    if (initialJump === undefined || tree === undefined) return
+    if (consumedJump.current === initialJump) return
+    consumedJump.current = initialJump
+    jump(initialJump)
+  }, [initialJump, tree])
 
   /**
    * 跳转落地：把目标行滚到可视区中间并闪一下。

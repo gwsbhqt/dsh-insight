@@ -108,6 +108,22 @@ A preset is one agent-plane plugin composition. A session picks one when it star
 
 A broken preset stays on the roster with its reason: hiding it would leave its directory occupying the id with nothing to see or delete.
 
+## 点界面查插件 · Point at the UI, name the plugin
+
+The switch lives in the Insight section of Settings. Once on, hold the modifier (⌥ by default, any combination works):
+
+- **Hover** — highlights the UI under the cursor and names the plugin that contributed it, plus where it sits (the slot key and that cell's key). The dashed outline around it is that entry's whole territory.
+- **Click** — opens the workbench straight onto the By plugin axis with that row selected, so the right column is its full dossier: where it came from, its wiring, its blast radius, its settings, and how the config stacked up.
+- **Right-click while holding** — expands the entire `here → root` chain, from the innermost piece of UI out to the shell; pick any level to jump to the plugin that filled it.
+
+The moment you hold it, **every piece of UI on this screen contributed by a non-official plugin is outlined in amber** — third-party and local (your own packages linked in) alike. The test is the same one the By plugin axis uses: a resolved path outside `node_modules` means local, the `@deepseek-ai` scope means official, everything else is third-party — no allowlist anywhere. So "what on this screen did not ship with dsh" is one glance rather than a hunt.
+
+Only what is genuinely visible gets marked: off-screen, self-hidden (`visibility: hidden`, transparent), and fully covered elements (the ones behind the settings dialog, rows scrolled out of their container) are skipped — otherwise the screen fills with outlines over nothing. The two colors have fixed jobs: **amber means this did not ship with dsh, blue means you are pointing at this**. Sharing one color would waste both.
+
+How it knows: every piece of UI in the dsh web client is a plugin registering into a slot. Each slot outlet leaves a `data-slot` anchor in the DOM, and on the React tree every entry is wrapped by its own registration record. Attribution walks that chain upward from whatever the cursor hit.
+
+**When it cannot tell, it says so.** The registrant name carried in the registration record is a minified class name in production builds, and those collide across packages — on a live client, `dsh-api-gateway`, `ui-open-in-app`, `api-workspace-files` and `client-modules` all report `Z8`. So the package name is never derived from it; it is taken from the registrant at the moment registration happens. Anything registered before Insight loaded cannot be named, and those levels report only where they sit rather than guessing from a minified name. In practice almost all of the page resolves: slot registration usually waits for the parent to declare the seat, so it actually lands during the first render — after every plugin has loaded.
+
 ## Why it refuses to guess
 
 Most of the work in this plugin is in the cases where the honest answer is "I don't know", and saying so instead of showing a plausible number:
@@ -133,12 +149,16 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
   - **Open in editor**, on an allowlisted config file or plugin directory.
   - **Restart now** — stop this dsh and start it again exactly the way it was launched (no file is touched; only the process changes). It takes two clicks; it is **disabled while any session is running**; and it defaults to off when systemd is detected, because restarts belong to the supervisor there. `DSH_INSIGHT_ALLOW_RESTART=0` turns it off for good, `=1` forces it on. The button depends on no other plugin.
 - The tool observer wraps `tools.register` **in memory only**. It writes no files, and touches neither `node_modules` nor the harness installation.
+- Point-at-the-UI does two things **at runtime**, both in the browser, neither touching a file or any dsh artifact:
+  - **Wraps the slots service's `register`** to record which package contributed which piece of UI. The original method runs untouched; one WeakMap write happens after it. The patch is owned by the plugin's lifecycle and unwinds on unload — the same shape as the tool observer.
+  - **Reads React's internal fiber fields** to reach that registration record. Read-only, the way DevTools does it. When it cannot read them, it falls back to reporting the slot alone.
+  - **Swallows that one click** while the modifier is held, so exploring never lands a real action on the page. Because it changes how the page feels, the switch ships off; release the modifier and everything behaves normally.
 
 ## Development
 
 ```sh
 pnpm install
-pnpm check          # typecheck + build + 83 tests
+pnpm check          # typecheck + build + 170 tests
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # install the working copy
 dsh --profile <name>
