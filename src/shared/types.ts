@@ -377,6 +377,11 @@ export interface PresetRow {
   isDefault: boolean
   /** 现在有几个活着的会话跑在这个预设上（0 = 此刻没人用它）。 */
   sessions?: number
+  /**
+   * 被**点名**开过多少个会话（全量历史，按会话创建时 header 里写的预设算）。
+   * 与 {@link sessions} 不是同一个口径——那个是此刻活着的、按最后一次切换算。
+   */
+  sessionsTotal?: number
   /** 坏在哪。能用就没有——坏的预设仍然留在名单上，否则它占着 id 却无处可查、无处可删。 */
   broken?: string
   /** composition 里的行。读不出来时缺席，原因见 rowsError。 */
@@ -409,6 +414,15 @@ export interface PresetInventory {
   defaultId?: string
   /** 会话实况读到了没有。读不到时各行的 sessions 缺席，界面就不许声称「没人用」。 */
   sessionsKnown: boolean
+  /** 会话索引读到了没有。读不到时各行的 sessionsTotal 缺席，界面就不许显示「共 0」。 */
+  totalsKnown: boolean
+  /**
+   * 创建时没点名预设的会话数（跑的是**当时**的默认）。
+   *
+   * 单独一格而不是摊进默认那一行：默认是可以改的，把它们算给现在的默认等于替
+   * 过去那些会话编一个它们从没选过的预设。本机 79 个会话里有 46 个是这种。
+   */
+  sessionsUnnamed?: number
   /**
    * 预设服务在不在。
    *

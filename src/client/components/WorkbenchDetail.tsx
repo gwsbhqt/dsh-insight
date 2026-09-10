@@ -961,6 +961,15 @@ function PresetDetail({ ctx, t, preset, query, presets, byId, onSelect }: Workbe
             ? t('preset.sessionsUnknown')
             : preset.sessions === 0 ? t('preset.noSessions') : t('preset.inUse', { count: preset.sessions })}
         </p>
+        {/* 全量历史与「在用」并排摆，并说清两者口径不同——不然两个数字会互相看着像错的 */}
+        {preset.sessionsTotal !== undefined && (
+          <>
+            <p className="m-0 mt-1 text-[12.5px] leading-[1.6] text-secondary tabular-nums">
+              {t('preset.sessionsTotal', { count: preset.sessionsTotal })}
+            </p>
+            <p className="m-0 mt-1 text-[11.5px] leading-[1.55] text-tertiary">{t('preset.sessionsTotalNote')}</p>
+          </>
+        )}
       </Section>
 
       <Section label={t('preset.dir')}>

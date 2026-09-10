@@ -201,6 +201,50 @@ function sessionPresets(ctx: Context): Map<string, number> | undefined {
   }
 }
 
+/**
+ * 每个预设**被点名**开过多少个会话，外加有多少个会话根本没点名。
+ *
+ * 走 `ctx.sessionQuery.listSessions()`——它在会话索引上列举，拿到每个会话的
+ * header。自己去翻 `$DSH_HOME/sessions` 是另一条路，但那边一个会话一个多帧 zstd
+ * 日志，格式一变就崩：实测拿 Node 自己的 zstd 流去解，79 个会话有 19 个直接失败。
+ *
+ * 口径是 `header.agentPreset`，也就是**创建这个会话时明确点名的预设**。为什么要
+ * 把「没点名」单独数出来而不是摊到默认那一行：本机 79 个会话里 46 个 header 里
+ * 没有这个字段，它们跑的是**当时**的默认预设，而默认是可以改的——把它们算给现在
+ * 的默认，等于替过去那些会话编一个它们从没选过的预设。
+ *
+ * 「中途换预设」不影响这个口径：换预设会追加一条 `agent-preset/selected` 事件、
+ * header 不动，而本机实测一条这样的事件都没有。真要按「最后一条赢」重算全量历史，
+ * 得把每个会话的事件流都读一遍（79 次 readSession），那是另一个量级的开销。
+ *
+ * 所以这一格和「在用」是两个口径，各说各的：在用 = 此刻活着的会话、按最后一次
+ * 切换算（见 {@link sessionPresets}）；共 = 历史全量、按创建时点名算。
+ * @returns 点名计数与未点名总数；会话索引服务缺席时是 undefined——「不知道」不能
+ *   说成「一个都没有」。
+ */
+async function sessionTotals(ctx: Context): Promise<{ counts: Map<string, number>; unnamed: number } | undefined> {
+  const query = ctx.get('sessionQuery') as SessionQueryLike | undefined
+  if (query === undefined || typeof query.listSessions !== 'function') return undefined
+  try {
+    const records = await query.listSessions()
+    const counts = new Map<string, number>()
+    let unnamed = 0
+    for (const record of records) {
+      const id = record?.header?.agentPreset
+      if (typeof id !== 'string' || id === '') { unnamed += 1; continue }
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+    return { counts, unnamed }
+  } catch {
+    return undefined
+  }
+}
+
+/** 会话索引上我们只用这一个方法。 */
+interface SessionQueryLike {
+  listSessions?(signal?: AbortSignal): Promise<readonly { header?: { agentPreset?: unknown } | undefined }[]>
+}
+
 /** agent 上我们要读的那两样东西。 */
 interface AgentLike {
   session?: {
@@ -249,13 +293,13 @@ async function hasFile(path: string): Promise<boolean> {
  */
 export async function collectPresets(ctx: Context): Promise<PresetInventory> {
   const service = ctx.get('agentPresets') as unknown
-  if (!isPresets(service)) return { presets: [], roots: [], sessionsKnown: false, service: 'missing' }
+  if (!isPresets(service)) return { presets: [], roots: [], sessionsKnown: false, totalsKnown: false, service: 'missing' }
 
   let list: Awaited<ReturnType<AgentPresetsLike['list']>>
   try {
     list = await service.list()
   } catch {
-    return { presets: [], roots: [], sessionsKnown: false, service: 'ok' }
+    return { presets: [], roots: [], sessionsKnown: false, totalsKnown: false, service: 'ok' }
   }
 
   let defaultId: string | undefined
@@ -267,6 +311,7 @@ export async function collectPresets(ctx: Context): Promise<PresetInventory> {
   }
 
   const usage = sessionPresets(ctx)
+  const totals = await sessionTotals(ctx)
 
   const presets: PresetRow[] = await Promise.all(list.map(async (p): Promise<PresetRow> => {
     const dir = dirname(p.path)
@@ -294,6 +339,7 @@ export async function collectPresets(ctx: Context): Promise<PresetInventory> {
       ...(p.broken === undefined ? {} : { broken: p.broken }),
       ...(meta ? { metaPath } : {}),
       ...(usage === undefined ? {} : { sessions: usage.get(p.id) ?? 0 }),
+      ...(totals === undefined ? {} : { sessionsTotal: totals.counts.get(p.id) ?? 0 }),
       ...facts,
       ...composition,
     }
@@ -339,6 +385,8 @@ export async function collectPresets(ctx: Context): Promise<PresetInventory> {
     roots: [...byRoot.values()],
     ...(defaultId === undefined ? {} : { defaultId }),
     sessionsKnown: usage !== undefined,
+    totalsKnown: totals !== undefined,
+    ...(totals === undefined ? {} : { sessionsUnnamed: totals.unnamed }),
     service: 'ok',
   }
 }

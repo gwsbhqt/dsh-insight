@@ -784,6 +784,7 @@ function PresetTable({ t, query, rawQuery, dossiers, presets, presetsStale, sele
     { label: t('preset.plugins'), width: '96px', align: 'right' },
   ]
   return (
+    <>
     <Table columns={cols}>
       {shown.map(p => {
         const on = selection?.kind === 'preset' && selection.id === p.id
@@ -809,6 +810,10 @@ function PresetTable({ t, query, rawQuery, dossiers, presets, presetsStale, sele
               {p.sessions !== undefined && p.sessions > 0 && (
                 <span className="shrink-0 text-secondary">{t('preset.inUse', { count: p.sessions })}</span>
               )}
+              {/* 点名次数：0 也照实显示——「没有一个会话点名过它」本身就是个结论 */}
+              {p.sessionsTotal !== undefined && (
+                <span className="shrink-0 tabular-nums text-tertiary">{t('preset.sessionsTotal', { count: p.sessionsTotal })}</span>
+              )}
               <VendorMark t={t} v={p.vendor} />
             </Marks>
             {/* 插件数上量条：五个预设之间「厚薄差多少」是这一轴最直观的一眼 */}
@@ -817,5 +822,16 @@ function PresetTable({ t, query, rawQuery, dossiers, presets, presetsStale, sele
         )
       })}
     </Table>
+    {/*
+      没点名预设的会话是整轴的一个事实，不属于任何一行：它们跑的是当时的默认，
+      而默认改过之后就再也说不清是哪一个了。摊进某一行等于替它们编一个选择。
+    */}
+    {presets.sessionsUnnamed !== undefined && presets.sessionsUnnamed > 0 && (
+      <p className="m-0 px-3 pt-2.5 pb-1 text-[11.5px] leading-[1.55] text-tertiary">
+        {t('preset.sessionsUnnamed', { count: presets.sessionsUnnamed })}
+        <span className="text-caption">{' · '}{t('preset.sessionsUnnamedNote')}</span>
+      </p>
+    )}
+    </>
   )
 }

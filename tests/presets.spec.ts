@@ -113,6 +113,8 @@ function fakeCtx(opts: {
   defaultId?: string
   names?: Record<string, string>
   agents?: { session: unknown }[]
+  /** 会话索引里的全量会话（只有 header 有用）。 */
+  corpus?: { header?: { agentPreset?: string } }[]
   declaredRoots?: { path: string; trust: string }[]
 }) {
   const service = {
@@ -126,8 +128,14 @@ function fakeCtx(opts: {
     }))),
   }
   const agents = opts.agents === undefined ? undefined : { list: () => opts.agents }
+  const sessionQuery = opts.corpus === undefined ? undefined : { listSessions: () => Promise.resolve(opts.corpus) }
   return {
-    get: (name: string) => (name === 'agentPresets' ? service : name === 'agents' ? agents : undefined),
+    get: (name: string) => (
+      name === 'agentPresets' ? service
+        : name === 'agents' ? agents
+          : name === 'sessionQuery' ? sessionQuery
+            : undefined
+    ),
   } as never
 }
 
@@ -201,10 +209,72 @@ describe('清单采集', () => {
     expect(inv.presets[0]?.sessions).toBeUndefined()
   })
 
+  it('全量会话数按创建时的预设算，和「在用」各说各的', async () => {
+    const root = makeRoot({ a: { composition: COMPOSITION }, b: { composition: COMPOSITION } })
+    const inv = await collectPresets(fakeCtx({
+      root, ids: ['a', 'b'],
+      // 活着的：创建时 a、后来换成 b —— 「在用」记在 b 上
+      agents: [{ session: session('a', 'b') }],
+      // 索引里的全量：两个创建于 a、一个创建于 b，还有一个没点名预设
+      corpus: [{ header: { agentPreset: 'a' } }, { header: { agentPreset: 'a' } }, { header: { agentPreset: 'b' } }, { header: {} }],
+    }))
+    expect(inv.totalsKnown).toBe(true)
+    const a = inv.presets.find(p => p.id === 'a')
+    const b = inv.presets.find(p => p.id === 'b')
+    // 同一份数据下两个口径必然不同：a 被点名过 2 次，但此刻没有活着的跑在它上面
+    expect(a?.sessionsTotal).toBe(2)
+    expect(a?.sessions).toBe(0)
+    expect(b?.sessionsTotal).toBe(1)
+    expect(b?.sessions).toBe(1)
+    // 没点名的那个不摊给任何一行，单独数出来（默认是可以改的，摊过去等于编造选择）
+    expect(inv.sessionsUnnamed).toBe(1)
+  })
+
+  it('没点名预设的会话单独数，不摊进默认那一行', async () => {
+    const root = makeRoot({ std: { composition: COMPOSITION } })
+    const inv = await collectPresets(fakeCtx({
+      root, ids: ['std'], defaultId: 'std',
+      corpus: [{ header: {} }, { header: {} }, { header: { agentPreset: 'std' } }],
+    }))
+    expect(inv.sessionsUnnamed).toBe(2)
+    // 默认那一行只算真的点名过它的那一个
+    expect(inv.presets[0]?.sessionsTotal).toBe(1)
+  })
+
+  it('一个会话都没开过的预设照实显示 0（那本身是个结论）', async () => {
+    const root = makeRoot({ a: { composition: COMPOSITION }, unused: { composition: COMPOSITION } })
+    const inv = await collectPresets(fakeCtx({
+      root, ids: ['a', 'unused'],
+      corpus: [{ header: { agentPreset: 'a' } }],
+    }))
+    expect(inv.presets.find(p => p.id === 'unused')?.sessionsTotal).toBe(0)
+  })
+
+  it('会话索引缺席时不说「共 0」，而是说不知道', async () => {
+    const root = makeRoot({ a: { composition: COMPOSITION } })
+    const inv = await collectPresets(fakeCtx({ root, ids: ['a'] }))
+    expect(inv.totalsKnown).toBe(false)
+    expect(inv.presets[0]?.sessionsTotal).toBeUndefined()
+  })
+
+  it('会话索引抛错时按缺席处理，不拖垮整张清单', async () => {
+    const root = makeRoot({ a: { composition: COMPOSITION } })
+    const ctx = {
+      get: (name: string) => (
+        name === 'agentPresets'
+          ? { defaultId: undefined, config: {}, list: () => Promise.resolve([{ id: 'a', trust: 'user' as const, path: join(root, 'a', 'agent.cordis.yml') }]) }
+          : name === 'sessionQuery' ? { listSessions: () => Promise.reject(new Error('index locked')) } : undefined
+      ),
+    } as never
+    const inv = await collectPresets(ctx)
+    expect(inv.totalsKnown).toBe(false)
+    expect(inv.presets).toHaveLength(1)
+  })
+
   it('服务缺席和「服务在但没预设」要分开报——空清单的成因不是一回事', async () => {
     // 没装 / 被关掉：该去「按插件」找那一条，不是去写一个预设
     const gone = await collectPresets({ get: () => undefined } as never)
-    expect(gone).toEqual({ presets: [], roots: [], sessionsKnown: false, service: 'missing' })
+    expect(gone).toEqual({ presets: [], roots: [], sessionsKnown: false, totalsKnown: false, service: 'missing' })
 
     // 服务在、扫过了、确实一个都没有：这才是「去写一个」
     const root = mkdtempSync(join(tmpdir(), 'dsh-insight-presets-'))
