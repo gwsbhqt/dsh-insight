@@ -110,11 +110,15 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
 
 ## 点界面查插件
 
+<img src="https://raw.githubusercontent.com/gwsbhqt/dsh-insight/main/docs/assets/inspector.png" width="900" alt="点界面查插件：按住 ⌥ 悬停，说出这块 UI 是谁插进来的；同一刻这一屏所有非官方插件插进来的界面被琥珀色框出来">
+
 开关在设置页的洞察区。开了之后按住修饰键（默认 ⌥，可改成任意组合）：
 
 - **悬停**——高亮鼠标下那块 UI，说出它是哪个插件插进来的，以及插在哪个位置（slot 名加那一格的键）。外面还有一圈虚线框，是这条 entry 的整块地盘。
 - **点击**——直接开到工作台的「按插件」轴，选中那一条，右栏就是它的完整档案：哪来的、接线、影响面、设置、配置怎么叠出来的。
 - **按住不放点右键**——展开「当前 → 根」的整条层级，从最里面那块 UI 一层层数到壳；点任意一层，跳那一层的插件。
+
+<img src="https://raw.githubusercontent.com/gwsbhqt/dsh-insight/main/docs/assets/inspector-hierarchy.png" width="900" alt="按住不放点右键：「当前 → 根」的整条层级，从洞察自己那一层一路数到 root">
 
 按住的同一刻，**这一屏所有非官方插件插进来的界面会被琥珀色框出来**——三方的和本地的（`link:` 进来的自研包）都算。判据就是「按插件」那一轴在用的同一份：磁盘路径不在 `node_modules` 里 = 本地，`@deepseek-ai` scope = 官方，其余三方，不靠任何名单。于是「这一屏哪些东西不是 dsh 自带的」是一眼的事，不用一块块去指。
 

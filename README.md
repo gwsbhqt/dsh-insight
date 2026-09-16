@@ -110,11 +110,15 @@ A broken preset stays on the roster with its reason: hiding it would leave its d
 
 ## 点界面查插件 · Point at the UI, name the plugin
 
+<img src="https://raw.githubusercontent.com/gwsbhqt/dsh-insight/main/docs/assets/inspector.png" width="900" alt="Point at the UI: hold ⌥ to highlight a piece of UI and name the plugin behind it, while every non-shipped plugin on screen is outlined in amber">
+
 The switch lives in the Insight section of Settings. Once on, hold the modifier (⌥ by default, any combination works):
 
 - **Hover** — highlights the UI under the cursor and names the plugin that contributed it, plus where it sits (the slot key and that cell's key). The dashed outline around it is that entry's whole territory.
 - **Click** — opens the workbench straight onto the By plugin axis with that row selected, so the right column is its full dossier: where it came from, its wiring, its blast radius, its settings, and how the config stacked up.
 - **Right-click while holding** — expands the entire `here → root` chain, from the innermost piece of UI out to the shell; pick any level to jump to the plugin that filled it.
+
+<img src="https://raw.githubusercontent.com/gwsbhqt/dsh-insight/main/docs/assets/inspector-hierarchy.png" width="900" alt="Right-click while holding: the whole here-to-root chain, from Insight's own layer out to root">
 
 The moment you hold it, **every piece of UI on this screen contributed by a non-official plugin is outlined in amber** — third-party and local (your own packages linked in) alike. The test is the same one the By plugin axis uses: a resolved path outside `node_modules` means local, the `@deepseek-ai` scope means official, everything else is third-party — no allowlist anywhere. So "what on this screen did not ship with dsh" is one glance rather than a hunt.
 
