@@ -1,6 +1,6 @@
 {
   "name": "@gwsbhqt/dsh-insight",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Read-only insight panel for a DeepSeek Harness profile: where every plugin, service, tool and model came from, which config layer inserted or disabled it, and what is running right now.",
   "keywords": [
     "dsh-plugin",
