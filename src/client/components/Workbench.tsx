@@ -621,6 +621,29 @@ export function disabledBy(d: PluginDossier, userLayers: ReadonlySet<string>): '
   return 'runtime'
 }
 
+/**
+ * 配置层已经改了，但这个进程还在按旧配置跑。
+ *
+ * 补丁层是热加载的，可这一条落没落到运行时由 dsh 说了算。差在这一步的时候，界面既不能
+ * 说「已经关了」（它还在跑），也不能什么都不说——那就成了「点了一下没反应」。
+ * 判据直接用 host 那份对账（`drift === 'mismatch'`）：`!!js` 表达式与撞名短 id 本来就
+ * 被排除在它之外，这里跟着它走，不另立一套判断。
+ */
+export function pendingRestart(d: PluginDossier): boolean {
+  return d.drift === 'mismatch' && d.intent !== undefined
+}
+
+/**
+ * 这一行此刻**算不算关着**——开关按钮给出哪个动作由它决定。
+ *
+ * 配置与运行时打架时跟**配置**走：你刚点下的那一笔立刻反映在按钮上（再点一下就是撤回），
+ * 而不是让按钮停在原地、让人以为没写进去。至于它生效没有，由行尾的「待重启」去说——
+ * 生效与否仍然由数据说了算，不由按钮宣布。
+ */
+export function configuredOff(d: PluginDossier): boolean {
+  return pendingRestart(d) ? d.intent?.disabled === true : d.state === 'disabled'
+}
+
 /** 需要人处理：加载失败 / 卡在等待 / 依赖无人提供（内置不算）。 */
 export function isAttention(d: PluginDossier, index: ReturnType<typeof buildGraphIndex>): boolean {
   if (d.state === 'failed' || d.state === 'pending' || d.state === 'loading' || d.state === 'unknown') return true

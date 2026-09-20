@@ -220,6 +220,8 @@ export const zh = {
   'vendor.thirdPartyNote': '不是 @deepseek-ai 发的包。它能做的事和官方插件一样多，装之前值得看一眼来源。',
   'vendor.localNote': '跑的是你磁盘上的这份代码，不是从 registry 装的——改了它立刻生效，也不会被 pnpm 覆盖掉。',
   'mark.overridden': '你改过',
+  'mark.pendingRestart': '待重启',
+  'mark.pendingRestartHint': '补丁层已经改了，这个进程还在按旧配置跑——用上面的「立即重启」换个进程就生效',
   'mark.runtime': '运行时注册',
   'mark.missingProvider': '缺提供者',
 
@@ -564,6 +566,8 @@ export const en: Record<InsightLocaleKey, string> = {
   'vendor.thirdPartyNote': 'Not published under @deepseek-ai. It can do everything an official plugin can, so its source is worth a look.',
   'vendor.localNote': 'Runs from this directory on your disk rather than the registry — edits take effect immediately and pnpm will not overwrite it.',
   'mark.overridden': 'you changed',
+  'mark.pendingRestart': 'needs restart',
+  'mark.pendingRestartHint': 'The patch layer has changed; this process is still running the old configuration — use Restart now above to pick it up',
   'mark.runtime': 'runtime',
   'mark.missingProvider': 'no provider',
 

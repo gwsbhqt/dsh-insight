@@ -18,7 +18,7 @@ import { PanelStatus } from './PanelStatus.tsx'
 import { TONE_TEXT } from './Tag.tsx'
 import { TruncText } from './TruncText.tsx'
 import { ChevronBox, Column, EndCell, GroupRow, INDENT_STEP, Marks, Meter, NameCell, ROW_PAD, Row, SubCell, Table } from './WorkbenchTable.tsx'
-import { disabledBy, hasUserOverride, isAttention, type Axis, type FilterId } from './Workbench.tsx'
+import { configuredOff, disabledBy, hasUserOverride, isAttention, pendingRestart, type Axis, type FilterId } from './Workbench.tsx'
 
 export type Selection =
   | { kind: 'plugin'; id: string }
@@ -329,7 +329,8 @@ function VendorMark({ t, v }: { t: TranslateNS<'dsh-insight'>; v: Vendor | undef
  */
 function ToggleCell({ t, d, toggle }: { t: TranslateNS<'dsh-insight'>; d: PluginDossier; toggle: ToggleControl }) {
   const blocked = toggle.blockedBy(d)
-  const off = d.state === 'disabled'
+  // 跟配置走而不是跟运行时走：写进补丁层的那一笔要当场反映在按钮上，见 configuredOff
+  const off = configuredOff(d)
   const busy = toggle.busy === d.id
   const pending = toggle.pending === d.id
   const disabled = !toggle.supported || blocked !== undefined || toggle.busy !== undefined
@@ -368,6 +369,15 @@ function RowMark({ t, d, index, userLayers }: { t: TranslateNS<'dsh-insight'>; d
       <span className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] text-warn">
         <i className="size-1.5 shrink-0 rounded-full bg-current" />
         {d.state === undefined || d.state === 'active' ? t('mark.missingProvider') : t(`state.${d.state}`)}
+      </span>
+    )
+  }
+  // 配置层已经改了、运行时还没跟上：说清楚差在哪一步，而不是让这一行看起来什么都没发生
+  if (pendingRestart(d)) {
+    return (
+      <span title={t('mark.pendingRestartHint')} className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] text-warn">
+        <i className="size-1.5 shrink-0 rounded-full bg-current" />
+        {t('mark.pendingRestart')}
       </span>
     )
   }

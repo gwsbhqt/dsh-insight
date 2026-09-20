@@ -145,6 +145,7 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
   - **It writes one file only** — your profile patch layer (`$DSH_HOME/profiles/<name>/cordis.patch.yml`) — and the target must resolve inside `$DSH_HOME` and outside `node_modules`. Bundle layers belong to the package manager and the home layer is shared across profiles; neither is touched.
   - **It edits text line by line and never re-serializes the YAML.** Round-tripping through a YAML library produces valid syntax and erases every comment you wrote — and those comments are the only record of *why* something was turned off. Only the one line that must change is touched; a newly appended entry carries a comment saying which tool added it.
   - **It takes two clicks**, with the confirm state in red, reverting on its own after 2 seconds.
+  - **The button flips with the configuration, and taking effect is said separately**: the patch layer is hot-reloaded, but whether this particular entry reaches the running process is dsh's call. The button reflects the line you just wrote (click again to withdraw it) while the row is marked *needs restart* — neither pretending it already took effect nor looking like nothing was written.
   - **An ambiguous short id is refused**: a patch targets by id, and when the same short id exists twice at runtime the write would hit both — the panel does not guess. An id that does not exist at runtime is refused too, rather than leaving a patch that can never match.
   - **The write is atomic**: a temp file in the same directory, then a rename.
   - **The result is parsed before it is written; if it does not read back, nothing is written.** A broken patch layer does not cost you one failed toggle — it stops the next dsh start in recovery mode. The bar is the loader's own: the top level must be a list, so withdrawing the last entry leaves `[]` behind rather than a file of bare comments. A file that already fails to parse, or one written in `[…]` flow style that line-by-line editing cannot reach, is refused with the reason spelled out instead of being written over.
@@ -163,7 +164,7 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
 
 ```sh
 pnpm install
-pnpm check          # typecheck + build + 190 tests
+pnpm check          # typecheck + build + 194 tests
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # install the working copy
 dsh --profile <name>
