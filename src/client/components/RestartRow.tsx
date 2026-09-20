@@ -8,8 +8,9 @@
  * 确认态标红、2 秒不点就自己退回去：红色说明这一下是有代价的，
  * 而误点的人什么都不用做，等一下按钮就复原了。
  *
- * 按不动的四种理由分开说，因为用户能做的事完全不同：
+ * 按不动的五种理由分开说，因为用户能做的事完全不同：
  *   有会话在跑 —— 等它跑完，按钮自己会亮；
+ *   嵌在别的应用里 —— host 就是那个应用的进程（DSH Desktop 这类），用它自己的重启；
  *   这台机器不许 —— 等也没用，得去改环境或者让守护进程来重启；
  *   问不到状态 —— 多半是 host 比界面旧，手动重启一次 dsh 就好；
  *   还没问到   —— 刚挂上来，等一下就有了，这时候什么都不该说。
@@ -29,6 +30,8 @@ function restartView(state: ReturnType<typeof useHostRestart>, t: TranslateNS<'d
   const { phase, status, probed, error } = state
   const off = status !== undefined && !status.canRestart
   const supervisor = status?.supervisor
+  // 嵌在别的应用进程里（DSH Desktop 这类）：这里的「重启」等于把那个应用整个关掉
+  const embedded = status?.embeddedIn
   const running = status?.running ?? 0
   const busy = running > 0
   // status 还没到手时也按不动：没有 boot 就没法判断新进程起来没有
@@ -41,10 +44,11 @@ function restartView(state: ReturnType<typeof useHostRestart>, t: TranslateNS<'d
   const hint = error !== undefined ? error
     : phase === 'working' ? t('restart.hintWorking')
       : status === undefined ? (probed ? t('restart.hintUnknown') : t('restart.hintProbing'))
-        : off ? (supervisor === undefined ? t('restart.hintOff') : t('restart.hintSupervised', { name: supervisor }))
-          : busy ? t('restart.hintBusy', { count: running })
-            : phase === 'confirm' ? t('restart.hintConfirm')
-              : t('restart.hint')
+        : embedded !== undefined ? t('restart.hintEmbedded', { name: embedded })
+          : off ? (supervisor === undefined ? t('restart.hintOff') : t('restart.hintSupervised', { name: supervisor }))
+            : busy ? t('restart.hintBusy', { count: running })
+              : phase === 'confirm' ? t('restart.hintConfirm')
+                : t('restart.hint')
 
   return { disabled, label, hint }
 }

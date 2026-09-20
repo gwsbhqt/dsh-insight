@@ -51,6 +51,36 @@ export function detectedSupervisor(
 }
 
 /**
+ * 宿主是不是**跑在别人的进程里**；是就给出那个应用的名字，认不出来返回 null。
+ *
+ * DSH Desktop 就是这么跑的：dsh host 不是它拉起来的子进程，而是 Electron 主进程**自己**
+ * （进程表里只有 Electron 主进程和它的渲染 / GPU 子进程，没有独立的 node dsh）。
+ * 这种形态下自助重启每一步都踩空：
+ *   - `restartLaunch()` 认不出启动方式（`argv[1]` 是应用入口，不是 `dsh`/`bin.js`），
+ *     回退去起 CLI `dsh`——而桌面 profile 明确「由 Electron 应用独占管理」，CLI 不接；
+ *   - 接力进程用 `process.execPath` 当 node 起，在这里那是 Electron 二进制；
+ *   - 最后那一下 SIGTERM 发给的是**整个应用**：按一次按钮，GUI 直接关掉。
+ *
+ * 所以这是一道 latch，不是 {@link restartAllowed} 里的一档：显式
+ * `DSH_INSIGHT_ALLOW_RESTART=1` 也不该把它打开——没有哪种部署形态下「从插件面板里
+ * 杀掉整个桌面应用」是对的答案。（同一条纪律见 dsh-market 对调试器的处理。）
+ * 判据是 Electron 官方的自我标识 `process.versions.electron`；名字取可执行文件名，
+ * 取不到就说 Electron，不猜具体是哪个应用。
+ * @param versions - `process.versions`，测试可注入。
+ * @param execPath - `process.execPath`，测试可注入。
+ */
+export function embeddedHost(
+  versions: NodeJS.ProcessVersions = process.versions,
+  execPath: string = process.execPath,
+): string | null {
+  const electron = (versions as { electron?: string }).electron
+  if (typeof electron !== 'string' || electron === '') return null
+  // 两种分隔符都切：这个值可能来自另一个平台的路径，basename 只认当前平台那一种
+  const file = (execPath.split(/[\\/]/u).pop() ?? '').replace(/\.exe$/iu, '')
+  return file === '' ? 'Electron' : file
+}
+
+/**
  * 自助重启默认开着；`DSH_INSIGHT_ALLOW_RESTART=0`（或 false/off/no）显式关掉，
  * 认出进程守护时默认也关掉——重启归它管。
  *

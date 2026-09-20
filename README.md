@@ -153,7 +153,7 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
 - **File preview is allowlisted.** `files/read` and `files/open` accept only paths the host itself discovered, validated after resolution.
 - Only two actions leave the browser, and both take your click:
   - **Open in editor**, on an allowlisted config file or plugin directory.
-  - **Restart now** — stop this dsh and start it again exactly the way it was launched (no file is touched; only the process changes). It takes two clicks; it is **disabled while any session is running**; and it defaults to off when systemd is detected, because restarts belong to the supervisor there. `DSH_INSIGHT_ALLOW_RESTART=0` turns it off for good, `=1` forces it on. The button depends on no other plugin. It sits both on the summary card and in the workbench header — the toggles live in the workbench, and the workbench covers the page, so the card's copy would be out of reach — sharing one state and one set of guards.
+  - **Restart now** — stop this dsh and start it again exactly the way it was launched (no file is touched; only the process changes). It takes two clicks; it is **disabled while any session is running**; and it defaults to off when systemd is detected, because restarts belong to the supervisor there. `DSH_INSIGHT_ALLOW_RESTART=0` turns it off for good, `=1` forces it on. **Inside an Electron app (DSH Desktop and the like) it is always off and `=1` does not override it**: there the host *is* the app's own process, so the final SIGTERM would shut the whole app down — use the app's own restart. The button depends on no other plugin. It sits both on the summary card and in the workbench header — the toggles live in the workbench, and the workbench covers the page, so the card's copy would be out of reach — sharing one state and one set of guards.
 - The tool observer wraps `tools.register` **in memory only**. It writes no files, and touches neither `node_modules` nor the harness installation.
 - Point-at-the-UI does two things **at runtime**, both in the browser, neither touching a file or any dsh artifact:
   - **Wraps the slots service's `register`** to record which package contributed which piece of UI. The original method runs untouched; one WeakMap write happens after it. The patch is owned by the plugin's lifecycle and unwinds on unload — the same shape as the tool observer.
@@ -164,7 +164,7 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
 
 ```sh
 pnpm install
-pnpm check          # typecheck + build + 196 tests
+pnpm check          # typecheck + build + 198 tests
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # install the working copy
 dsh --profile <name>

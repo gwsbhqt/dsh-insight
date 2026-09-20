@@ -14,7 +14,7 @@ import { collectFiles, profileNameOf, readFilePreview, assertAllowedPath, author
 import { openInEditor } from './open.ts'
 import { collectPresets, presetPaths } from './presets.ts'
 import { applyToggle } from './toggle.ts'
-import { BOOT_ID, detectedSupervisor, restartAllowed, scheduleRestart } from './restart.ts'
+import { BOOT_ID, detectedSupervisor, embeddedHost, restartAllowed, scheduleRestart } from './restart.ts'
 import { layerViews, ownAnchor, rebuildLayers, replayLayers, type PatchLayer } from './layers.ts'
 import { toFinalConfig, type LiveEntryState } from './final.ts'
 import { collectGraph } from './graph.ts'
@@ -260,10 +260,13 @@ export function createInsightHandler(ctx: Context) {
     // 「立即重启」那颗按钮要不要置灰，全看这一份：进程身份 + 能不能重启 + 忙不忙
     'host/status': (): HostStatus => {
       const supervisor = detectedSupervisor()
+      const embedded = embeddedHost()
       return {
         boot: BOOT_ID,
-        canRestart: restartAllowed(),
+        // 嵌在别人的进程里时一律关掉：那一下 SIGTERM 发给的是整个应用，见 embeddedHost
+        canRestart: embedded === null && restartAllowed(),
         ...(supervisor === null ? {} : { supervisor }),
+        ...(embedded === null ? {} : { embeddedIn: embedded }),
         running: runningAgents(ctx),
       }
     },
@@ -271,6 +274,14 @@ export function createInsightHandler(ctx: Context) {
     // 三道闸都在这里再判一次——界面的置灰只是提示，不能当成保护。
     'host/restart': (): RestartAck => {
       const supervisor = detectedSupervisor()
+      const embedded = embeddedHost()
+      if (embedded !== null) {
+        return {
+          ok: false,
+          reason: 'off',
+          message: `self-restart is off inside ${embedded}: this host is that app's own process, so restarting would shut the app down`,
+        }
+      }
       if (!restartAllowed()) {
         return {
           ok: false,

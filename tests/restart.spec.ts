@@ -6,11 +6,12 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { createInsightHandler } from '../src/host/rpc.ts'
 import {
   detectedSupervisor,
+  embeddedHost,
   respawnInvocation,
   restartAllowed,
   restartHelperSource,
@@ -157,4 +158,35 @@ it('未知端点的错误信封带齐 details——少了它浏览器连信封�
   expect(result.error.code).toBe('bad-request')
   // 传输层的 zod schema 对 bad-request 要求 details: { issues: [...] }
   expect(result.error).toHaveProperty('details.issues')
+})
+
+it('跑在 Electron 应用里就认出来：host 是那个应用自己的进程，不是它的子进程', () => {
+  const electron = { electron: '38.0.0' } as unknown as NodeJS.ProcessVersions
+  expect(embeddedHost(electron, '/Applications/DSH Desktop.app/Contents/MacOS/DSH Desktop')).toBe('DSH Desktop')
+  expect(embeddedHost(electron, 'C:\\Program Files\\DSH Desktop\\DSH Desktop.exe')).toBe('DSH Desktop')
+  // 普通 node 进程不认——这道 latch 只针对「host 就是别人的进程」那一种
+  expect(embeddedHost({ node: '24.0.0' } as unknown as NodeJS.ProcessVersions, '/usr/local/bin/node')).toBe(null)
+})
+
+it('嵌在应用里时 status 关掉重启并说出是谁，restart 也当场拒绝——按下去会关掉整个应用', async () => {
+  const versions = process.versions as unknown as { electron?: string }
+  versions.electron = '38.0.0'
+  cleanup.push(() => { delete versions.electron })
+  // 显式打开也不该赢：没有哪种部署形态下「从面板里杀掉整个桌面应用」是对的
+  const previous = process.env.DSH_INSIGHT_ALLOW_RESTART
+  process.env.DSH_INSIGHT_ALLOW_RESTART = '1'
+  cleanup.push(() => {
+    if (previous === undefined) delete process.env.DSH_INSIGHT_ALLOW_RESTART
+    else process.env.DSH_INSIGHT_ALLOW_RESTART = previous
+  })
+
+  const status = await call<HostStatus>(fakeCtx(0), 'host/status')
+  expect(status.canRestart).toBe(false)
+  expect(status.embeddedIn).toBe(basename(process.execPath).replace(/\.exe$/iu, ''))
+
+  const ack = await call<RestartAck>(fakeCtx(0), 'host/restart')
+  expect(ack.ok).toBe(false)
+  if (ack.ok) return
+  expect(ack.reason).toBe('off')
+  expect(ack.message).toContain(status.embeddedIn ?? '')
 })
