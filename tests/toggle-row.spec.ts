@@ -29,10 +29,13 @@ it('配置说禁用、运行时还活着：算「待重启」，按钮给「启�
   expect(configuredOff(d)).toBe(true)
 })
 
-it('配置撤回了禁用、运行时还关着：同样是待重启，按钮给「禁用」', () => {
+it('反方向（配置没关、运行时关着）不标「待重启」：分不清是撤回还没生效还是运行时自己关的', () => {
+  // 运行时关掉一条插件（父容器关了、表达式求值成关）在数据上与「你刚撤回禁用」一模一样，
+  // 前者重启也不会变——标成待重启只会让人白重启一次。但按钮仍跟配置走，免得点了没反应。
   const d = row({ state: 'disabled', disabled: true, drift: 'mismatch', intent: { disabled: false, config: {} } })
-  expect(pendingRestart(d)).toBe(true)
+  expect(pendingRestart(d)).toBe(false)
   expect(configuredOff(d)).toBe(false)
+  expect(toggleTarget(d)).toBe(true)
 })
 
 it('没有错位就照运行时说的办', () => {
