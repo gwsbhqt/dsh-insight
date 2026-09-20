@@ -11,6 +11,7 @@ import {
   disabledLineOf,
   flowStyleList,
   idLineOf,
+  patchListProblem,
   patchTextProblem,
   rewritePatch,
   topLevelBlocks,
@@ -238,7 +239,8 @@ describe('冗余就删，而不是留一行废话', () => {
     const { home, path } = makeHome(added)
     const result = await applyToggle({ path, home, id: 'ui-plan', disabled: false, matches: 1, redundant: true })
     expect(result).toMatchObject({ ok: true, action: 'removed' })
-    expect(readFileSync(path, 'utf8').trim()).toBe('')
+    // 一条都不剩时留下空列表：只剩注释的文件 dsh 读不回来
+    expect(readFileSync(path, 'utf8').trim()).toBe('[]')
   })
 })
 
@@ -318,5 +320,48 @@ describe('流式列表写法够不着，就说清楚而不是写坏', () => {
     const { text, action } = rewritePatch(nested, 'b', true)
     expect(action).toBe('inserted')
     expect(text).toContain('    items: []')
+  })
+})
+
+describe('撤回最后一条之后，文件还得是一个列表', () => {
+  /** dsh 新建 profile 写的模板：三行注释 + 一行 `[]`。 */
+  const TEMPLATE = `# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; \`!!js\` expressions allowed).
+[]
+`
+
+  it('禁用再启用一圈：注释还在，文件回到空列表，且始终读得回来', async () => {
+    const { home, path } = makeHome(TEMPLATE)
+    await applyToggle({ path, home, id: 'llm-deepseek', disabled: true, matches: 1 })
+    const afterDisable = readFileSync(path, 'utf8')
+    expect(afterDisable).toContain('- id: llm-deepseek')
+    expect(await patchListProblem(afterDisable)).toBeUndefined()
+
+    await applyToggle({ path, home, id: 'llm-deepseek', disabled: false, matches: 1, redundant: true })
+    const afterEnable = readFileSync(path, 'utf8')
+    expect(afterEnable).not.toContain('llm-deepseek')
+    expect(afterEnable).toContain('# Your patch layer for this dsh profile')
+    // 只剩注释的文件 dsh 报 must be a top-level YAML array of loader patch entries
+    expect(afterEnable).toContain('[]')
+    expect(await patchListProblem(afterEnable)).toBeUndefined()
+  })
+
+  it('还剩别的段时不补空列表——那会多出一份空文档', () => {
+    const { text } = rewritePatch(PATCH, 'ui-message-feedback', false, true)
+    expect(text).toContain('- id: llm-deepseek')
+    expect(text).not.toContain('\n[]')
+  })
+
+  it('只摘掉开关那一行、段还在时，也不补空列表', () => {
+    const withBoth = '- id: dsh-ipython\n  disabled: true\n  config:\n    pythonVersion: \'3.13\'\n'
+    const { text } = rewritePatch(withBoth, 'dsh-ipython', false, true)
+    expect(text).not.toContain('[]')
+  })
+
+  it('判据分得开：只有注释读得回来，但写不下去', async () => {
+    const commentsOnly = '# 只剩一行注释\n'
+    expect(await patchTextProblem(commentsOnly)).toBeUndefined()
+    expect(await patchListProblem(commentsOnly)).toBe('补丁层顶层必须是一个列表')
   })
 })

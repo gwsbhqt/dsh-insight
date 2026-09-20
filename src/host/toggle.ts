@@ -96,6 +96,20 @@ export function disabledLineOf(lines: readonly string[], block: Block): number |
   return undefined
 }
 
+/**
+ * 摘完之后一条顶层列表项都不剩时，补一行 `[]`。
+ *
+ * dsh 的加载器要求补丁层顶层是一个**列表**：只剩注释的文件它读不回来，报
+ * `must be a top-level YAML array of loader patch entries`。而「把关掉的那一条撤回」
+ * 不该顺带让整份文件（连同你写的注释）变成读不回来的废纸——空列表就是「什么都没改」
+ * 的正确写法，dsh 自己新建 profile 时写的模板也正是它。
+ */
+function ensureList(lines: readonly string[], eol: string): string {
+  if (topLevelBlocks(lines).length > 0) return lines.join(eol)
+  const body = lines.join(eol).replace(/\s*$/u, '')
+  return body === '' ? `[]${eol}` : `${body}${eol}${eol}[]${eol}`
+}
+
 /** 改写结果：新文本 + 这次到底做了什么。 */
 export interface Rewrite {
   text: string
@@ -151,7 +165,7 @@ export function rewritePatch(text: string, id: string, disabled: boolean, redund
       // 段里还有别的配置，或者上面挂着别人写的注释：只摘掉开关那一行，其余原样留着
       const copy = [...lines]
       copy.splice(at, 1)
-      return { text: copy.join(eol), action: 'removed' }
+      return { text: ensureList(copy, eol), action: 'removed' }
     }
     // 整段连同我们自己那行注释一起摘掉，并收掉留下的那个空行
     const above = (lines[hit.start - 1] ?? '').trim()
@@ -160,7 +174,7 @@ export function rewritePatch(text: string, id: string, disabled: boolean, redund
     copy.splice(from, hit.end - from)
     // 删完如果留下连着的两个空行，收掉一个——补丁文件是给人读的
     if ((copy[from - 1] ?? '').trim() === '' && (copy[from] ?? '').trim() === '') copy.splice(from, 1)
-    return { text: copy.join(eol), action: 'removed' }
+    return { text: ensureList(copy, eol), action: 'removed' }
   }
 
   if (hit !== undefined) {
@@ -219,28 +233,48 @@ export function flowStyleList(text: string): boolean {
   return lines.some(line => line.startsWith('[') && !EMPTY_LIST_PLACEHOLDER.test(line))
 }
 
+/** 一次解析的三种结局。`unavailable` 必须和「解析出 undefined」分得开——注释文件正是后者。 */
+type Loaded =
+  | { kind: 'unavailable' }
+  | { kind: 'error'; problem: string }
+  | { kind: 'ok'; value: unknown }
+
+/** 解析一份补丁文本。js-yaml 不在时返回 unavailable：读不出来不等于文本坏了（见 host/yaml.ts）。 */
+async function loadPatch(text: string): Promise<Loaded> {
+  const d = await yamlDialect()
+  if (d === null) return { kind: 'unavailable' }
+  try {
+    return { kind: 'ok', value: d.yaml.load(text, { schema: d.schema }) }
+  } catch (error) {
+    return { kind: 'error', problem: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 /**
- * 把一份补丁文本解析回来，说清楚它哪里不对；没问题返回 undefined。
+ * 这份文本**读得回来**吗？读不回来说清楚为什么，否则 undefined。
  *
- * 为什么写之前要先解析一遍：补丁层读不回来，dsh 下次启动就停在恢复模式——面板上点
- * 一下开关，代价是整个 harness 起不来。**宁可这一次不写，也不写出读不回来的 YAML。**
- * js-yaml 不在时跳过这一关（读不出来不等于文本坏了，理由见 host/yaml.ts）。
+ * 读的判据比写宽一格：空文件、整份都是注释都算读得回来——它们还不是列表，
+ * 但追加一段之后就是了，不该因此把用户拦在「修不了自己这份文件」的门外。
  * @param text - 补丁文件的全部文本。
- * @returns 解析不了或不是顶层列表时给出原因，否则 undefined。
  */
 export async function patchTextProblem(text: string): Promise<string | undefined> {
-  const d = await yamlDialect()
-  if (d === null) return undefined
-  let parsed: unknown
-  try {
-    parsed = d.yaml.load(text, { schema: d.schema })
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error)
-  }
-  // 空文件 / 整份都是注释：现在还没有列表，追加一段之后就有了
-  if (parsed === null || parsed === undefined) return undefined
-  if (!Array.isArray(parsed)) return '补丁层必须是一个顶层列表'
-  return undefined
+  const loaded = await loadPatch(text)
+  return loaded.kind === 'error' ? loaded.problem : undefined
+}
+
+/**
+ * 这份文本**能不能写下去**：除了读得回来，顶层还必须是一个列表。
+ *
+ * 为什么写之前非要过这一关：补丁层坏掉，dsh 下次启动就停在恢复模式；顶层不是列表时
+ * 它同样读不回来（`must be a top-level YAML array of loader patch entries`）。面板上点
+ * 一下开关，代价不该是整个 harness 起不来。**宁可这一次不写，也不写出读不回来的文件。**
+ * @param text - 准备落盘的全部文本。
+ */
+export async function patchListProblem(text: string): Promise<string | undefined> {
+  const loaded = await loadPatch(text)
+  if (loaded.kind === 'error') return loaded.problem
+  if (loaded.kind === 'unavailable') return undefined
+  return Array.isArray(loaded.value) ? undefined : '补丁层顶层必须是一个列表'
 }
 
 /**
@@ -298,7 +332,7 @@ export async function applyToggle(opts: {
   }
   const { text: next, action } = rewritePatch(text, opts.id, opts.disabled, opts.redundant === true)
   if (action !== 'unchanged') {
-    const problem = await patchTextProblem(next)
+    const problem = await patchListProblem(next)
     if (problem !== undefined) {
       return { ok: false, reason: 'refused', message: `这次改写会写出读不回来的补丁文件，已经放弃：${problem}` }
     }
