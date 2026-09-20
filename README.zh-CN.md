@@ -164,7 +164,7 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
 
 ```sh
 pnpm install
-pnpm check          # 类型检查 + 构建 + 200 个测试
+pnpm check          # 类型检查 + 构建 + 208 个测试
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # 装本地工作副本
 dsh --profile <name>

@@ -2,6 +2,7 @@
  * 配置文件清单：当前 profile 涉及的 patch 层、settings、credentials 元数据、root cordis.yml。
  * credentials 的正文永不读取，也不进入预览 allowlist。
  */
+import { realpathSync } from 'node:fs'
 import { open, realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { isAbsolute, join, relative } from 'node:path'
@@ -57,6 +58,15 @@ export async function collectFiles(ctx: Context, layers: PatchLayer[]): Promise<
   return collectFilesFromHome(home, profileNameOf(ctx, home), layers)
 }
 
+/** realpath 能解就解（软链 home 与真实路径对得上），解不了就原样用。 */
+function resolvedPath(path: string): string {
+  try {
+    return realpathSync(path)
+  } catch {
+    return path
+  }
+}
+
 /**
  * 当前 profile 的名字。
  *
@@ -65,8 +75,12 @@ export async function collectFiles(ctx: Context, layers: PatchLayer[]): Promise<
  * 就是 `.dsh-market`，随后 loadProfile 报 `profile ".dsh-market" does not exist`，
  * 整个面板加载失败。**从市场装的插件走的正是这条路**，所以这不是边角情况。
  *
- * 判据改成「它落在 `<home>/profiles/` 下面的哪一段」：热挂载目录、node_modules 再深也
- * 一样能还原出 profile 名。落在 profiles 之外（非常规布局）才退回末段，认不出就当 web。
+ * 三级判据，一级不行退一级，**每一级都保证老形态的答案不变**：
+ *   1. 落在 `<home>/profiles/` 下面的第一段。两边都先 realpath——`~/.dsh` 是软链
+ *      （stow/dotfiles 常见）而 baseUrl 给的是真实路径时，不解析就永远对不上。
+ *   2. 路径里最后一个 `profiles` 段的下一段。home 拿不到、或者 home 与 baseUrl
+ *      根本不同根时还能认；`<home>/profiles/<name>` 是 dsh 自己的布局常量。
+ *   3. 末段——老办法。走到这里说明布局非常规，至少不比改之前差。
  * @param ctx - 客户端 / 宿主 ctx，取 `baseUrl`。
  * @param home - $DSH_HOME，默认现算。
  */
@@ -79,12 +93,19 @@ export function profileNameOf(ctx: Context, home: string = homeOf(ctx)): string 
     return 'web'
   }
   const trimmed = pathname.replace(/[\\/]+$/u, '')
-  const rel = relative(join(home, 'profiles'), trimmed)
+  const parts = trimmed.split(/[\\/]/u).filter(part => part !== '')
+
+  const rel = relative(resolvedPath(join(home, 'profiles')), resolvedPath(trimmed))
   if (rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)) {
     const first = rel.split(/[\\/]/u)[0]
     if (first !== undefined && first !== '') return first
   }
-  return trimmed.split(/[\\/]/u).pop() ?? 'web'
+
+  const at = parts.lastIndexOf('profiles')
+  const named = at < 0 ? undefined : parts[at + 1]
+  if (named !== undefined && named !== '') return named
+
+  return parts.at(-1) ?? 'web'
 }
 
 const PREVIEW_MAX_BYTES = 256 * 1024

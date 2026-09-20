@@ -1,9 +1,18 @@
 /** collectFiles：fixture DSH_HOME 上的文件清单采集。 */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { realpath } from 'node:fs/promises'
-import { expect, it } from 'vitest'
+import { pathToFileURL } from 'node:url'
+import { afterEach, expect, it } from 'vitest'
+
+/** 用例里建出来的软链与临时目录，跑完就收。 */
+const cleanupPaths: string[] = []
+afterEach(() => {
+  for (const path of cleanupPaths.splice(0)) {
+    try { unlinkSync(path) } catch { rmSync(path, { recursive: true, force: true }) }
+  }
+})
 import { collectFilesFromHome, assertAllowedPath, authorizePreviewPath, profileNameOf, readFilePreview } from '../src/host/files.ts'
 
 it('列出 patch 层、settings、credentials，按层归属标注', async () => {
@@ -67,22 +76,72 @@ it('大文件只读取前 256 KiB，并保持 UTF-8 尾部完整', async () => {
   expect(preview.content.endsWith('\uFFFD')).toBe(false)
 })
 
+
 /**
  * profile 名的判据。线上装 0.3.0 踩到的就是这一条：市场热挂载的插件跑在它自己那一层
  * loader 里，`ctx.baseUrl` 指向 `<profile>/.dsh-market/`，照末段取名就成了 `.dsh-market`，
  * 随后 loadProfile 报「profile ".dsh-market" does not exist」，整个面板加载失败。
+ *
+ * 这一组用例是**兼容性矩阵**：desktop 与 web、市场热挂载与普通依赖、软链 home 与真实
+ * 路径，四组两两组合都要给出同一个答案。改这个函数时先把这张表跑绿。
  */
 const ctxWith = (baseUrl: string | undefined, home = '/home/u/.dsh') =>
   ({ baseUrl, dshHomePath: () => home }) as unknown as Parameters<typeof profileNameOf>[0]
 
-it('profile 名按 home 反推：热挂载目录、深层 node_modules 都能还原', () => {
+it('普通依赖：web 与 desktop 两种 profile 都照旧', () => {
+  expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/web/'))).toBe('web')
   expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/desktop/'))).toBe('desktop')
+  // 结尾没有斜杠也一样
+  expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/web'))).toBe('web')
+})
+
+it('市场热挂载：baseUrl 指向 .dsh-market，仍要还原出 profile 名', () => {
+  expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/web/.dsh-market/'))).toBe('web')
   expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/desktop/.dsh-market/'))).toBe('desktop')
   expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/web/.dsh-market/node_modules/pkg/'))).toBe('web')
 })
 
-it('落在 profiles 之外退回末段；baseUrl 认不出就当 web', () => {
+it('home 是软链（stow/dotfiles）而 baseUrl 是真实路径：两边都 realpath 才对得上', () => {
+  const real = mkdtempSync(join(tmpdir(), 'dsh-insight-home-'))
+  const link = `${real}-link`
+  symlinkSync(real, link, 'dir')
+  cleanupPaths.push(link, real)
+  for (const name of ['web', 'desktop']) {
+    mkdirSync(join(real, 'profiles', name, '.dsh-market'), { recursive: true })
+    // home 报的是软链路径，baseUrl 给的是真实路径
+    expect(profileNameOf(ctxWith(pathToFileURL(join(real, 'profiles', name)).href, link))).toBe(name)
+    expect(profileNameOf(ctxWith(pathToFileURL(join(real, 'profiles', name, '.dsh-market')).href, link))).toBe(name)
+  }
+})
+
+it('home 对不上（拿不到 dshHomePath、或根本不同根）时靠路径里的 profiles 段认', () => {
+  expect(profileNameOf(ctxWith('file:///elsewhere/.dsh/profiles/web/.dsh-market/', '/home/u/.dsh'))).toBe('web')
+  expect(profileNameOf(ctxWith('file:///elsewhere/.dsh/profiles/desktop/'))).toBe('desktop')
+})
+
+it('非常规布局退回末段（老行为），baseUrl 认不出就当 web', () => {
   expect(profileNameOf(ctxWith('file:///opt/custom/layout/web2/'))).toBe('web2')
   expect(profileNameOf(ctxWith(undefined))).toBe('web')
   expect(profileNameOf(ctxWith('这不是 URL'))).toBe('web')
+})
+
+/** 改之前（0.3.0）的实现，逐字抄在这里当参照物。 */
+function legacyProfileName(baseUrl: string | undefined): string {
+  const pathname = new URL(baseUrl ?? '').pathname.replace(/\/+$/, '')
+  return pathname.split('/').pop() ?? 'web'
+}
+
+it.each([
+  'file:///home/u/.dsh/profiles/web/',
+  'file:///home/u/.dsh/profiles/desktop/',
+  'file:///elsewhere/.dsh/profiles/web/',
+  'file:///opt/custom/layout/web2/',
+])('老形态答案一个字都没变：%s', url => {
+  expect(profileNameOf(ctxWith(url))).toBe(legacyProfileName(url))
+})
+
+it('变的只有热挂载这一种：老的算成 .dsh-market（线上那条报错），新的算成 profile 名', () => {
+  const url = 'file:///home/u/.dsh/profiles/desktop/.dsh-market/'
+  expect(legacyProfileName(url)).toBe('.dsh-market')
+  expect(profileNameOf(ctxWith(url))).toBe('desktop')
 })

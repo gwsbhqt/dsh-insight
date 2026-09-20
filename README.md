@@ -164,7 +164,7 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
 
 ```sh
 pnpm install
-pnpm check          # typecheck + build + 200 tests
+pnpm check          # typecheck + build + 208 tests
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # install the working copy
 dsh --profile <name>
