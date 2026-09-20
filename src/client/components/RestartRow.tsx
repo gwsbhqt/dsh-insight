@@ -24,9 +24,9 @@ export interface RestartRowProps {
   t: TranslateNS<'dsh-insight'>
 }
 
-export function RestartRow({ ctx, t }: RestartRowProps) {
-  const { phase, status, probed, error, click } = useHostRestart(ctx, t)
-
+/** label / hint / 能不能点：整行版与头部紧凑版共用一份，免得两处各判一套、判出两个答案。 */
+function restartView(state: ReturnType<typeof useHostRestart>, t: TranslateNS<'dsh-insight'>) {
+  const { phase, status, probed, error } = state
   const off = status !== undefined && !status.canRestart
   const supervisor = status?.supervisor
   const running = status?.running ?? 0
@@ -45,6 +45,14 @@ export function RestartRow({ ctx, t }: RestartRowProps) {
           : busy ? t('restart.hintBusy', { count: running })
             : phase === 'confirm' ? t('restart.hintConfirm')
               : t('restart.hint')
+
+  return { disabled, label, hint }
+}
+
+export function RestartRow({ ctx, t }: RestartRowProps) {
+  const state = useHostRestart(ctx, t)
+  const { phase, error, click } = state
+  const { disabled, label, hint } = restartView(state, t)
 
   const tone = disabled
     ? 'cursor-not-allowed border-line bg-surface-2 text-tertiary opacity-60'
@@ -71,5 +79,37 @@ export function RestartRow({ ctx, t }: RestartRowProps) {
         {hint}
       </span>
     </div>
+  )
+}
+
+/**
+ * 工作台顶栏那颗「立即重启」。
+ *
+ * 为什么这里也要有一颗：改开关的地方在工作台，而工作台是盖住整页的——摘要卡上那颗
+ * 在它后面，看不见也够不着。于是「改完要重启才生效」这句话在唯一需要它的地方无处可点。
+ * 行为、守卫、二次确认都复用同一个 hook，只是没地方放那段说明文字，改挂在 title 上。
+ */
+export function RestartButton({ ctx, t }: RestartRowProps) {
+  const state = useHostRestart(ctx, t)
+  const { phase, click } = state
+  const { disabled, label, hint } = restartView(state, t)
+
+  const tone = disabled
+    ? 'cursor-not-allowed text-dimmed'
+    : phase === 'confirm' ? 'cursor-pointer text-err hover:bg-hover' : 'cursor-pointer text-secondary hover:bg-hover hover:text-primary'
+
+  return (
+    <button
+      type="button"
+      title={hint}
+      onClick={click}
+      disabled={disabled}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1 text-[12.5px] transition-colors duration-150 ${tone}`}
+    >
+      {label}
+      <span aria-hidden="true" className={`inline-flex ${phase === 'working' ? 'dsh-spin' : ''}`}>
+        {phase === 'confirm' ? <HelpIcon /> : <RestartIcon />}
+      </span>
+    </button>
   )
 }

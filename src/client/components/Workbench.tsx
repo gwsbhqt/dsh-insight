@@ -28,6 +28,7 @@ import { buildVendorIndex, isForeign, vendorOf } from '../../shared/vendor.ts'
 import type { ConfigFileInfo, FinalConfig, LayerView, ModelInventory, PluginGraphNode, PluginNode, PresetInventory, SettingsView, ToggleResult, ToolInventory } from '../../shared/types.ts'
 import { CloseIcon } from './icons.tsx'
 import { PanelStatus } from './PanelStatus.tsx'
+import { RestartButton } from './RestartRow.tsx'
 import { SURFACE_SIZE, surfaceMotion, useSettled } from './surface.ts'
 import { normQuery } from './search.ts'
 import { callInsight, InsightRpcError } from '../rpc.ts'
@@ -263,7 +264,7 @@ function WorkbenchBody({ ctx, t, onClose, tree, graph, final, settings, layers, 
     }
     setPendingToggle(undefined)
     setBusyToggle(d.id)
-    const next = d.state !== 'disabled'
+    const next = toggleTarget(d)
     const stateText = next ? t('toggle.stateOff') : t('toggle.stateOn')
     callInsight<ToggleResult>(ctx, 'config/toggle', { id: d.shortId, disabled: next })
       .then(result => {
@@ -414,10 +415,15 @@ function WorkbenchBody({ ctx, t, onClose, tree, graph, final, settings, layers, 
       {/* 顶栏：只放身份与全局动作 */}
       <div className="flex h-[55px] shrink-0 items-center gap-3 border-b border-line px-4">
         <span className="text-[14px] font-medium">{t('workbench.title')}</span>
+        {/* 改开关的地方在工作台，「改完要重启才生效」的那颗按钮就得够得着：
+            摘要卡上那颗被这一层盖住了，说「上面那颗」等于说了一句没法照做的话 */}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <RestartButton ctx={ctx} t={t} />
+        </div>
         <button
           type="button"
           onClick={onReload}
-          className="ml-auto shrink-0 cursor-pointer rounded px-2.5 py-1 text-[12.5px] text-secondary transition-colors duration-150 hover:bg-hover hover:text-primary"
+          className="shrink-0 cursor-pointer rounded px-2.5 py-1 text-[12.5px] text-secondary transition-colors duration-150 hover:bg-hover hover:text-primary"
         >
           {t('action.refresh')}
         </button>
@@ -642,6 +648,17 @@ export function pendingRestart(d: PluginDossier): boolean {
  */
 export function configuredOff(d: PluginDossier): boolean {
   return pendingRestart(d) ? d.intent?.disabled === true : d.state === 'disabled'
+}
+
+/**
+ * 点这一下要写下去的目标状态。
+ *
+ * 必须和按钮上的字同源：写成 `d.state !== 'disabled'` 而按钮按 {@link configuredOff}
+ * 画，两者在「配置已改、运行时没跟上」的行上会指向相反的方向——按钮写着「禁用」，
+ * 点下去请求的却是「启用」，于是什么都没发生。**点了没反应比点错还难查。**
+ */
+export function toggleTarget(d: PluginDossier): boolean {
+  return !configuredOff(d)
 }
 
 /** 需要人处理：加载失败 / 卡在等待 / 依赖无人提供（内置不算）。 */

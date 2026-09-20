@@ -106,7 +106,7 @@ export const zh = {
   'toggle.stateOff': '禁用',
   'toggle.stateOn': '启用',
   'toggle.fail': '没写成：{message}',
-  'toggle.restartHint': '补丁层是热加载的；这一条没立刻生效的话，用上面的「立即重启」换个进程。',
+  'toggle.restartHint': '补丁层是热加载的；这一条没立刻生效的话，用这个面板右上角的「立即重启」换个进程。',
   'toggle.dismiss': '知道了',
 
   // Inspector：按住修饰键指着界面问「这块是谁插的」
@@ -221,7 +221,7 @@ export const zh = {
   'vendor.localNote': '跑的是你磁盘上的这份代码，不是从 registry 装的——改了它立刻生效，也不会被 pnpm 覆盖掉。',
   'mark.overridden': '你改过',
   'mark.pendingRestart': '待重启',
-  'mark.pendingRestartHint': '补丁层已经改了，这个进程还在按旧配置跑——用上面的「立即重启」换个进程就生效',
+  'mark.pendingRestartHint': '补丁层已经改了，这个进程还在按旧配置跑——点这个面板右上角的「立即重启」换个进程就生效',
   'mark.runtime': '运行时注册',
   'mark.missingProvider': '缺提供者',
 
@@ -454,7 +454,7 @@ export const en: Record<InsightLocaleKey, string> = {
   'toggle.stateOff': 'disabled',
   'toggle.stateOn': 'enabled',
   'toggle.fail': 'Write failed: {message}',
-  'toggle.restartHint': 'The patch layer is hot-reloaded; if this did not take effect at once, use Restart now above.',
+  'toggle.restartHint': 'The patch layer is hot-reloaded; if this did not take effect at once, use Restart now at the top right of this panel.',
   'toggle.dismiss': 'Got it',
 
   // Inspector
@@ -567,7 +567,7 @@ export const en: Record<InsightLocaleKey, string> = {
   'vendor.localNote': 'Runs from this directory on your disk rather than the registry — edits take effect immediately and pnpm will not overwrite it.',
   'mark.overridden': 'you changed',
   'mark.pendingRestart': 'needs restart',
-  'mark.pendingRestartHint': 'The patch layer has changed; this process is still running the old configuration — use Restart now above to pick it up',
+  'mark.pendingRestartHint': 'The patch layer has changed; this process is still running the old configuration — Restart now at the top right of this panel to pick it up',
   'mark.runtime': 'runtime',
   'mark.missingProvider': 'no provider',
 

@@ -5,7 +5,7 @@
  * 按钮还写着「禁用」，看起来像什么都没发生，再点一次只会得到「本来就是禁用」。
  */
 import { expect, it } from 'vitest'
-import { configuredOff, pendingRestart } from '../src/client/components/Workbench.tsx'
+import { configuredOff, pendingRestart, toggleTarget } from '../src/client/components/Workbench.tsx'
 import type { PluginDossier } from '../src/shared/dossier.ts'
 
 function row(patch: Partial<PluginDossier> = {}): PluginDossier {
@@ -45,4 +45,16 @@ it('对账说错位但没挂上意图（撞名放弃归因）时不猜，退回�
   const d = row({ state: 'active', drift: 'mismatch' })
   expect(pendingRestart(d)).toBe(false)
   expect(configuredOff(d)).toBe(false)
+})
+
+it('按钮上的字和点下去的动作同源：错位行上不会出现「点了没反应」', () => {
+  // 真实踩到的那一幕：配置已经撤回禁用、运行时还关着
+  const d = row({ state: 'disabled', disabled: true, drift: 'mismatch', intent: { disabled: false, config: {} } })
+  expect(configuredOff(d)).toBe(false)   // 按钮写「禁用」
+  expect(toggleTarget(d)).toBe(true)     // 点下去就得请求禁用，而不是启用
+})
+
+it('普通行上两者同样对齐', () => {
+  expect(toggleTarget(row({ state: 'active' }))).toBe(true)
+  expect(toggleTarget(row({ state: 'disabled', disabled: true }))).toBe(false)
 })

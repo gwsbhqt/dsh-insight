@@ -153,7 +153,7 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
 - **文件预览走白名单。** `files/read` 与 `files/open` 只接受 host 自己发现的路径，且在解析出真实路径之后再校验一次。
 - 会离开浏览器的动作只有两个，都要你亲手点：
   - **在编辑器中打开**，对象是白名单里的配置文件或插件目录。
-  - **立即重启**——关掉当前 dsh，按它原来的启动方式再拉起一个（不改任何文件，只换进程）。要点两次才动手；**有会话正在执行时按不动**；检测到 systemd 托管时默认关闭，因为那种部署里重启归守护进程管。`DSH_INSIGHT_ALLOW_RESTART=0` 彻底关掉它，`=1` 强制打开。这颗按钮不依赖任何其他插件。
+  - **立即重启**——关掉当前 dsh，按它原来的启动方式再拉起一个（不改任何文件，只换进程）。要点两次才动手；**有会话正在执行时按不动**；检测到 systemd 托管时默认关闭，因为那种部署里重启归守护进程管。`DSH_INSIGHT_ALLOW_RESTART=0` 彻底关掉它，`=1` 强制打开。这颗按钮不依赖任何其他插件。摘要卡和工作台顶栏各摆一颗（改开关的地方在工作台，而工作台盖住整页，摘要卡那颗够不着），走的是同一套状态与守卫。
 - 工具观察器**只包内存里的 `tools.register`**，不写任何文件，不碰 `node_modules`，也不碰 harness 的安装目录。
 - 「点界面查插件」的两处**运行时**手脚都在浏览器里，都不碰任何文件、不改 dsh 的任何产物：
   - **给 slots 服务的 `register` 包一层**记账（哪块 UI 是谁注册的）。原方法照常执行，之后多写一条 WeakMap；补丁挂在插件生命周期上，卸载即按栈还原。和工具观察器是同一种做法。
@@ -164,7 +164,7 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
 
 ```sh
 pnpm install
-pnpm check          # 类型检查 + 构建 + 194 个测试
+pnpm check          # 类型检查 + 构建 + 196 个测试
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # 装本地工作副本
 dsh --profile <name>
