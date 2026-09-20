@@ -20,7 +20,7 @@
  *   两级——这样配置里怎么写的都不影响结论。
  *
  *   **配置是什么** —— 直接读 composition 文件并按 dsh 的 YAML 方言解析
- *   （`!!js` 表达式原样保留成 `{__jsExpr}`，见下面的 JS_EXPR_TAG）。**不求值**：
+ *   （`!!js` 表达式原样保留成 `{__jsExpr}`，见 host/yaml.ts 的 JS_EXPR_TAG）。**不求值**：
  *   `disabled: !!js process.platform === 'win32'` 这种行，静态侧只知道「有个表达式」，
  *   不知道真假——`Boolean({__jsExpr})` 恒为 true 是陷阱，host/final.ts 已经栽过一次。
  *
@@ -31,6 +31,7 @@ import { basename, dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PresetEntry, PresetInventory, PresetRootView, PresetRow } from '../shared/types.ts'
 import { vendorOfPath } from '../shared/vendor.ts'
+import { yamlDialect } from './yaml.ts'
 
 /** 上游 `agentPresets` 服务的最小只读面（不跨包 import 值，形状对齐 dsh-agent-presets）。 */
 interface AgentPresetsLike {
@@ -53,53 +54,6 @@ function isPresets(value: unknown): value is AgentPresetsLike {
 
 /** 显示元数据文件的名字（上游 METADATA_FILE 同值；它没导出，这里按文件名认）。 */
 const METADATA_FILE = 'preset.yml'
-
-/**
- * dsh 的 entry-list YAML 方言：`!!js <表达式>` 构造成 `{ __jsExpr: '<表达式>' }`。
- *
- * 和 dsh-app-boot 内部那份是同一个约定（host/final.ts 的 jsExprOf 读的就是它）。
- * 非用不可：预设里 `disabled: !!js process.platform === 'win32'` 是常规写法，
- * 拿默认 schema 去 load 会在这一行直接抛「unknown tag」，整个预设就读不出来了。
- */
-const JS_EXPR_TAG = 'tag:yaml.org,2002:js'
-
-/** js-yaml 的最小面。动态 import 进来，缺席就降级，不让整根轴塌掉。 */
-interface YamlLike {
-  load(content: string, options: { schema: unknown }): unknown
-  JSON_SCHEMA: { extend(type: unknown): unknown }
-  Type: new (tag: string, options: {
-    kind: 'scalar'
-    construct(data: string): unknown
-    represent?(data: unknown): unknown
-  }) => unknown
-}
-
-let dialect: { yaml: YamlLike; schema: unknown } | null | undefined
-
-/**
- * 拿到解析 composition 用的 YAML 方言，只备一次。
- *
- * 为什么是动态 import：js-yaml 不是本包的依赖，它是 `@deepseek-ai/dsh-app-boot` 和
- * `@deepseek-ai/dsh-agent-presets` 各自的依赖。也就是说——**能读到预设服务，就一定
- * 装了 js-yaml**。但「一定」是今天的事实不是契约，所以静态 import 会把「上游哪天换了
- * YAML 库」变成「dsh-insight 整个插件加载失败」。动态 + 兜底，最坏也只是这一轴少一列。
- * @returns 方言；js-yaml 不在时返回 null。
- */
-async function yamlDialect(): Promise<{ yaml: YamlLike; schema: unknown } | null> {
-  if (dialect !== undefined) return dialect
-  try {
-    const mod = await import('js-yaml') as unknown as { default?: YamlLike } & YamlLike
-    const yaml = (mod.default ?? mod)
-    const jsExpr = new yaml.Type(JS_EXPR_TAG, {
-      kind: 'scalar',
-      construct: (data: string) => ({ __jsExpr: data }),
-    })
-    dialect = { yaml, schema: yaml.JSON_SCHEMA.extend(jsExpr) }
-  } catch {
-    dialect = null
-  }
-  return dialect
-}
 
 /** `!!js` 表达式节点里的原文。 */
 function jsExprOf(value: unknown): string | undefined {

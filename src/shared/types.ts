@@ -448,7 +448,8 @@ export type ToggleResult =
     /**
      * ambiguous = 短 id 撞名，写下去会同时命中多个；
      * not-found = 运行时根本没有这个插件；
-     * refused   = 目标路径或 id 不合法（只写 $DSH_HOME 里的 profile 补丁层）；
+     * refused   = 目标路径或 id 不合法（只写 $DSH_HOME 里的 profile 补丁层），
+     *             或者补丁文件本来就读不回来 / 这次改写会写出读不回来的 YAML；
      * failed    = 落盘本身失败。
      */
     reason: 'ambiguous' | 'not-found' | 'refused' | 'failed'

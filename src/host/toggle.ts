@@ -13,16 +13,29 @@
  *   3. **短 id 撞名就拒绝。** 补丁按 id 命中，同一个短 id 在运行时有两份时，写下去会同时
  *      命中两个。这一轴一贯的态度是不猜，写操作更没有猜的余地。
  *   4. **原子落盘**：先写同目录的临时文件再 rename，中途断电不会留下半份配置。
+ *   5. **写之前先把改出来的文本解析一遍**，读不回来就不写。补丁层坏掉的代价不是
+ *      「这次没生效」，而是 dsh 下次启动停在恢复模式——面板上点一下开关，不该让整个
+ *      harness 起不来。
  */
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, isAbsolute } from 'node:path'
 import type { ToggleResult } from '../shared/types.ts'
+import { yamlDialect } from './yaml.ts'
 
 /** 新插入的那一段上面写这一行，好让人知道它是谁加的、怎么改回去。 */
 export const TOGGLE_COMMENT = '# 「洞察」面板加的：在面板里点禁用/启用会改下面这一行'
 
 /** 允许写进 YAML 的 id 形状。补丁按 id 命中，它不该带引号、换行或注释符。 */
 const SAFE_ID = /^[A-Za-z0-9_.:-]+$/u
+
+/**
+ * dsh 新建 profile 时写进补丁文件的空列表占位符：整份模板就是「几行注释 + 一行 `[]`」。
+ *
+ * 它是**流式写法的空列表**，本身已经是一份完整的 YAML 文档。在它后面再接块状列表项，
+ * 一个文件里就有了两份文档，js-yaml 报 `end of the stream or a document separator is
+ * expected`——而补丁层读不回来，dsh 下次启动会直接停在恢复模式。所以追加时先摘掉它。
+ */
+const EMPTY_LIST_PLACEHOLDER = /^\[\s*\]\s*$/u
 
 /** 一个顶层列表项占的行区间 `[start, end)`。 */
 interface Block {
@@ -167,8 +180,9 @@ export function rewritePatch(text: string, id: string, disabled: boolean, redund
   }
 
   // 追加一段。前面垫一个空行让它和上一段分开，但文件本来就是空的时候不垫。
+  // 顺手摘掉模板留下的 `[]`：它和块状列表项不能共存，理由见 EMPTY_LIST_PLACEHOLDER。
   const body = [TOGGLE_COMMENT, `- id: ${id}`, `  disabled: ${value}`].join(eol)
-  const base = text.replace(/\s*$/u, '')
+  const base = lines.filter(line => !EMPTY_LIST_PLACEHOLDER.test(line)).join(eol).replace(/\s*$/u, '')
   const head = base === '' ? '' : `${base}${eol}${eol}`
   return { text: `${head}${body}${eol}`, action: 'inserted' }
 }
@@ -190,6 +204,43 @@ export async function writeAtomic(path: string, text: string): Promise<void> {
     await unlink(tmp).catch(() => { /* 临时文件没建起来就没什么可删的 */ })
     throw error
   }
+}
+
+/**
+ * 顶层是不是**流式列表写法**（`[{ id: … }]` 写在一行里）。
+ *
+ * 逐行改的做法够不着这种写法：它没有块状列表项可改，硬追加一段就和它挤成两份文档。
+ * 空列表 `[]` 不算——那是 dsh 的模板占位符，追加时摘掉它就行（见 EMPTY_LIST_PLACEHOLDER）。
+ * @param text - 补丁文件的全部文本。
+ */
+export function flowStyleList(text: string): boolean {
+  const lines = text.split(/\r?\n/u)
+  if (topLevelBlocks(lines).length > 0) return false
+  return lines.some(line => line.startsWith('[') && !EMPTY_LIST_PLACEHOLDER.test(line))
+}
+
+/**
+ * 把一份补丁文本解析回来，说清楚它哪里不对；没问题返回 undefined。
+ *
+ * 为什么写之前要先解析一遍：补丁层读不回来，dsh 下次启动就停在恢复模式——面板上点
+ * 一下开关，代价是整个 harness 起不来。**宁可这一次不写，也不写出读不回来的 YAML。**
+ * js-yaml 不在时跳过这一关（读不出来不等于文本坏了，理由见 host/yaml.ts）。
+ * @param text - 补丁文件的全部文本。
+ * @returns 解析不了或不是顶层列表时给出原因，否则 undefined。
+ */
+export async function patchTextProblem(text: string): Promise<string | undefined> {
+  const d = await yamlDialect()
+  if (d === null) return undefined
+  let parsed: unknown
+  try {
+    parsed = d.yaml.load(text, { schema: d.schema })
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
+  // 空文件 / 整份都是注释：现在还没有列表，追加一段之后就有了
+  if (parsed === null || parsed === undefined) return undefined
+  if (!Array.isArray(parsed)) return '补丁层必须是一个顶层列表'
+  return undefined
 }
 
 /**
@@ -232,8 +283,25 @@ export async function applyToggle(opts: {
   } catch {
     text = '' // 补丁文件还不存在：这次就把它建出来
   }
+  const broken = await patchTextProblem(text)
+  if (broken !== undefined) {
+    // 本来就坏了：逐行改一份读不回来的文本只会把它改得更难修
+    return { ok: false, reason: 'refused', message: `补丁文件现在读不回来，先修好它再点：${broken}` }
+  }
+  if (flowStyleList(text)) {
+    // 与其写出一份读不回来的文件，不如说清楚这一份该怎么改才能被面板接手
+    return {
+      ok: false,
+      reason: 'refused',
+      message: '补丁文件是流式列表写法（`[…]` 写在一行里），面板只改块状列表；把它改写成 `- id: …` 那种写法再点',
+    }
+  }
   const { text: next, action } = rewritePatch(text, opts.id, opts.disabled, opts.redundant === true)
   if (action !== 'unchanged') {
+    const problem = await patchTextProblem(next)
+    if (problem !== undefined) {
+      return { ok: false, reason: 'refused', message: `这次改写会写出读不回来的补丁文件，已经放弃：${problem}` }
+    }
     try {
       await writeAtomic(opts.path, next)
     } catch (error) {

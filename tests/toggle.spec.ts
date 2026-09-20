@@ -9,7 +9,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   applyToggle,
   disabledLineOf,
+  flowStyleList,
   idLineOf,
+  patchTextProblem,
   rewritePatch,
   topLevelBlocks,
   writableTarget,
@@ -237,5 +239,84 @@ describe('冗余就删，而不是留一行废话', () => {
     const result = await applyToggle({ path, home, id: 'ui-plan', disabled: false, matches: 1, redundant: true })
     expect(result).toMatchObject({ ok: true, action: 'removed' })
     expect(readFileSync(path, 'utf8').trim()).toBe('')
+  })
+})
+
+describe('dsh 模板里的空列表占位符', () => {
+  /** dsh 新建 profile 时写的就是这一份：三行注释 + 一行 `[]`。 */
+  const TEMPLATE = `# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; \`!!js\` expressions allowed).
+[]
+`
+
+  it('追加时摘掉 []，注释一行不少', () => {
+    const { text, action } = rewritePatch(TEMPLATE, 'llm-deepseek', true)
+    expect(action).toBe('inserted')
+    expect(text).not.toContain('[]')
+    expect(text).toContain('# Your patch layer for this dsh profile')
+    expect(text).toContain(`${TOGGLE_COMMENT}\n- id: llm-deepseek\n  disabled: true`)
+  })
+
+  it('改出来的文件必须还能读回来——它正是在这里坏过一次', async () => {
+    const { text } = rewritePatch(TEMPLATE, 'llm-deepseek', true)
+    const { load } = await import('js-yaml')
+    expect(load(text)).toEqual([{ id: 'llm-deepseek', disabled: true }])
+    expect(await patchTextProblem(text)).toBeUndefined()
+  })
+
+  it('把 [] 留在原地就是两份文档挤在一起，护栏认得出来', async () => {
+    const twoDocs = `${TEMPLATE}\n${TOGGLE_COMMENT}\n- id: llm-deepseek\n  disabled: true\n`
+    expect(await patchTextProblem(twoDocs)).toContain('document')
+  })
+})
+
+describe('写之前先解析一遍', () => {
+  const base = { disabled: true, matches: 1 }
+
+  it('补丁文件本来就读不回来：一个字节都不动，并说清楚是文件坏了', async () => {
+    const twoDocs = '[]\n\n- id: a\n  disabled: true\n'
+    const { home, path } = makeHome(twoDocs)
+    const result = await applyToggle({ ...base, path, home, id: 'ui-plan' })
+    expect(result).toMatchObject({ ok: false, reason: 'refused' })
+    expect(readFileSync(path, 'utf8')).toBe(twoDocs)
+  })
+
+  it('顶层不是列表也拒绝——补丁层只认列表', async () => {
+    const mapping = 'id: a\ndisabled: true\n'
+    const { home, path } = makeHome(mapping)
+    const result = await applyToggle({ ...base, path, home, id: 'ui-plan' })
+    expect(result).toMatchObject({ ok: false, reason: 'refused' })
+    expect(readFileSync(path, 'utf8')).toBe(mapping)
+  })
+
+  it('正常文件照写不误', async () => {
+    const { home, path } = makeHome(PATCH)
+    const result = await applyToggle({ ...base, path, home, id: 'ui-plan' })
+    expect(result).toMatchObject({ ok: true, action: 'inserted' })
+    expect(await patchTextProblem(readFileSync(path, 'utf8'))).toBeUndefined()
+  })
+})
+
+describe('流式列表写法够不着，就说清楚而不是写坏', () => {
+  it('`[{ id: a }]` 这种一行写法：拒绝，文件一个字节不动', async () => {
+    const flow = '[{ id: a, disabled: true }]\n'
+    const { home, path } = makeHome(flow)
+    const result = await applyToggle({ path, home, id: 'ui-plan', disabled: true, matches: 1 })
+    expect(result).toMatchObject({ ok: false, reason: 'refused' })
+    expect(readFileSync(path, 'utf8')).toBe(flow)
+  })
+
+  it('模板的空列表不算流式——它就是要被摘掉的那个占位符', () => {
+    expect(flowStyleList('[]\n')).toBe(false)
+    expect(flowStyleList('- id: a\n  disabled: true\n')).toBe(false)
+    expect(flowStyleList('[{ id: a }]\n')).toBe(true)
+  })
+
+  it('只摘顶层那一个占位符，缩进里的空列表原样留着', () => {
+    const nested = '- id: a\n  config:\n    items: []\n'
+    const { text, action } = rewritePatch(nested, 'b', true)
+    expect(action).toBe('inserted')
+    expect(text).toContain('    items: []')
   })
 })

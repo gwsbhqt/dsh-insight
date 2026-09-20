@@ -147,6 +147,7 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
   - **It takes two clicks**, with the confirm state in red, reverting on its own after 2 seconds.
   - **An ambiguous short id is refused**: a patch targets by id, and when the same short id exists twice at runtime the write would hit both — the panel does not guess. An id that does not exist at runtime is refused too, rather than leaving a patch that can never match.
   - **The write is atomic**: a temp file in the same directory, then a rename.
+  - **The result is parsed before it is written; if it does not read back, nothing is written.** A broken patch layer does not cost you one failed toggle — it stops the next dsh start in recovery mode. A file that already fails to parse, or one written in `[…]` flow style that line-by-line editing cannot reach, is refused with the reason spelled out instead of being written over.
 - **Credential bodies are never read.** `.credentials.yaml` is listed for its path and size and is excluded from the preview allowlist. Activation methods are read through the credential service's enumeration face, whose contract is "every stored record, values excluded" — the panel learns *that* a record is an API key or an OAuth grant, never what it contains.
 - **File preview is allowlisted.** `files/read` and `files/open` accept only paths the host itself discovered, validated after resolution.
 - Only two actions leave the browser, and both take your click:
@@ -162,7 +163,7 @@ Most of the work in this plugin is in the cases where the honest answer is "I do
 
 ```sh
 pnpm install
-pnpm check          # typecheck + build + 170 tests
+pnpm check          # typecheck + build + 186 tests
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # install the working copy
 dsh --profile <name>

@@ -147,6 +147,7 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
   - **要点两次**，确认态标红、2 秒不点自己退回去。
   - **短 id 撞名就拒绝**：补丁按 id 命中，同一个短 id 在运行时有两份时写下去会同时命中，这里不猜。运行时没有的插件也不写——不留一条永远命不中的补丁。
   - **原子落盘**：先写同目录临时文件再 rename，中途断电不会留下半份配置。
+  - **写之前先把改出来的文本解析一遍，读不回来就不写。** 补丁层坏掉的代价不是「这次没生效」，而是 dsh 下次启动停在恢复模式。文件本来就读不回来、或者用的是 `[…]` 流式写法（逐行改够不着），也一律拒绝并说清楚原因，而不是硬写。
 - **凭据正文永不读取。** `.credentials.yaml` 只列路径和大小，且被排除在预览白名单之外。激活方式走的是凭据服务的枚举接口，那个接口的契约就是「列出每条记录，永不带值」——面板只知道某条记录**是** API key 还是 OAuth 授权，不知道它是什么。
 - **文件预览走白名单。** `files/read` 与 `files/open` 只接受 host 自己发现的路径，且在解析出真实路径之后再校验一次。
 - 会离开浏览器的动作只有两个，都要你亲手点：
@@ -162,7 +163,7 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
 
 ```sh
 pnpm install
-pnpm check          # 类型检查 + 构建 + 170 个测试
+pnpm check          # 类型检查 + 构建 + 186 个测试
 
 dsh plugin --profile <name> add /path/to/dsh-insight   # 装本地工作副本
 dsh --profile <name>
