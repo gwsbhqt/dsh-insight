@@ -4,7 +4,8 @@
  */
 import { open, realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute, join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-app-boot'
 import type { ConfigFileInfo } from '../shared/types.ts'
@@ -45,16 +46,45 @@ export async function collectFilesFromHome(
   return entries.filter((e): e is ConfigFileInfo => e !== undefined)
 }
 
-/** 运行时形态：home 取 ctx.dshHomePath（boot 提供），profile 名取 ctx.baseUrl 末段。 */
-export async function collectFiles(ctx: Context, layers: PatchLayer[]): Promise<ConfigFileInfo[]> {
-  const home = ctx.dshHomePath?.() ?? process.env.DSH_HOME ?? join(homedir(), '.dsh')
-  return collectFilesFromHome(home, profileNameOf(ctx), layers)
+/** $DSH_HOME：boot 提供的 `dshHomePath` 优先，其次环境变量，最后默认位置。 */
+export function homeOf(ctx: Context): string {
+  return ctx.dshHomePath?.() ?? process.env.DSH_HOME ?? join(homedir(), '.dsh')
 }
 
-/** ctx.baseUrl 形如 file:///…/profiles/<name>/ —— 取末段目录名。 */
-export function profileNameOf(ctx: Context): string {
-  const pathname = new URL(ctx.baseUrl ?? '').pathname.replace(/\/+$/, '')
-  return pathname.split('/').pop() ?? 'web'
+/** 运行时形态：home 取 ctx.dshHomePath（boot 提供），profile 名按 home 反推。 */
+export async function collectFiles(ctx: Context, layers: PatchLayer[]): Promise<ConfigFileInfo[]> {
+  const home = homeOf(ctx)
+  return collectFilesFromHome(home, profileNameOf(ctx, home), layers)
+}
+
+/**
+ * 当前 profile 的名字。
+ *
+ * `ctx.baseUrl` 是**这一层 loader 的根**，不一定就是 profile 目录。市场热挂载进来的插件
+ * 跑在它自己那一层里，baseUrl 指向 `<profile>/.dsh-market/`——照「取末段」的老办法算出来
+ * 就是 `.dsh-market`，随后 loadProfile 报 `profile ".dsh-market" does not exist`，
+ * 整个面板加载失败。**从市场装的插件走的正是这条路**，所以这不是边角情况。
+ *
+ * 判据改成「它落在 `<home>/profiles/` 下面的哪一段」：热挂载目录、node_modules 再深也
+ * 一样能还原出 profile 名。落在 profiles 之外（非常规布局）才退回末段，认不出就当 web。
+ * @param ctx - 客户端 / 宿主 ctx，取 `baseUrl`。
+ * @param home - $DSH_HOME，默认现算。
+ */
+export function profileNameOf(ctx: Context, home: string = homeOf(ctx)): string {
+  const base = ctx.baseUrl ?? ''
+  let pathname: string
+  try {
+    pathname = base.startsWith('file:') ? fileURLToPath(base) : new URL(base).pathname
+  } catch {
+    return 'web'
+  }
+  const trimmed = pathname.replace(/[\\/]+$/u, '')
+  const rel = relative(join(home, 'profiles'), trimmed)
+  if (rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)) {
+    const first = rel.split(/[\\/]/u)[0]
+    if (first !== undefined && first !== '') return first
+  }
+  return trimmed.split(/[\\/]/u).pop() ?? 'web'
 }
 
 const PREVIEW_MAX_BYTES = 256 * 1024

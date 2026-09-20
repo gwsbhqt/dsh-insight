@@ -3,14 +3,13 @@
  * 信封格式参考 dsh-codex-subscription 的 publicError 模式。
  */
 import { createRequire } from 'node:module'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { EntryTree } from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-app-boot'
 import type { HostStatus, InsightEndpoint, InsightResult, InsightSummary, ModelInventory, PresetInventory, RestartAck, SettingsView, ToggleResult, ToolInventory } from '../shared/types.ts'
 import { buildSummary } from '../shared/summary.ts'
-import { collectFiles, profileNameOf, readFilePreview, assertAllowedPath, authorizePreviewPath } from './files.ts'
+import { collectFiles, homeOf, profileNameOf, readFilePreview, assertAllowedPath, authorizePreviewPath } from './files.ts'
 import { openInEditor } from './open.ts'
 import { collectPresets, presetPaths } from './presets.ts'
 import { applyToggle } from './toggle.ts'
@@ -25,14 +24,10 @@ import { collectNodes, collectTree } from './tree.ts'
 
 export type InsightProducer = (payload: unknown, signal: AbortSignal) => Promise<unknown> | unknown
 
-/** 当前进程的 dsh home：从运行时拿，兜底环境变量与默认路径。 */
-function homeOf(ctx: Context): string {
-  return ctx.dshHomePath?.() ?? process.env.DSH_HOME ?? join(homedir(), '.dsh')
-}
-
-/** 当前进程的重建上下文：home 与 profile 名都从运行时拿。 */
+/** 当前进程的重建上下文：home 与 profile 名都从运行时拿（profile 名按 home 反推，见 profileNameOf）。 */
 function layersOf(ctx: Context): PatchLayer[] {
-  return rebuildLayers({ profileName: profileNameOf(ctx), anchor: ownAnchor(), home: homeOf(ctx) })
+  const home = homeOf(ctx)
+  return rebuildLayers({ profileName: profileNameOf(ctx, home), anchor: ownAnchor(), home })
 }
 
 /** 每条 entry 的来源层：短 ID 在运行时唯一时才归因，避免不同 realm 的同名节点串线。 */
@@ -55,7 +50,8 @@ export function originResolver(layers: PatchLayer[], runtimeIds: Iterable<string
 
 /** 模块说明符 → 包磁盘目录：从 profile 根 require.resolve（软链/层级 node_modules 都覆盖）。 */
 function pathResolverOf(ctx: Context): (name: string) => string | undefined {
-  const require = createRequire(join(homeOf(ctx), 'profiles', profileNameOf(ctx), 'noop.js'))
+  const home = homeOf(ctx)
+  const require = createRequire(join(home, 'profiles', profileNameOf(ctx, home), 'noop.js'))
   return name => {
     if (name === '' || name.startsWith('cordis:')) return undefined
     try {
@@ -171,7 +167,7 @@ export function createInsightHandler(ctx: Context) {
       const layers = layersOf(ctx)
       const profile = layers.find(l => l.kind === 'profile')
       const home = homeOf(ctx)
-      const path = profile?.patchPath ?? join(home, 'profiles', profileNameOf(ctx), 'cordis.patch.yml')
+      const path = profile?.patchPath ?? join(home, 'profiles', profileNameOf(ctx, home), 'cordis.patch.yml')
       // 这一条在**重放出来的配置**里出现几次——0 是补丁命不中，>1 才是真撞名。
       //
       // 判据必须是配置而不是运行时。补丁作用的对象就是这份配置（宿主面那一份），

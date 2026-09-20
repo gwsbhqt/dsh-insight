@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { realpath } from 'node:fs/promises'
 import { expect, it } from 'vitest'
-import { collectFilesFromHome, assertAllowedPath, authorizePreviewPath, readFilePreview } from '../src/host/files.ts'
+import { collectFilesFromHome, assertAllowedPath, authorizePreviewPath, profileNameOf, readFilePreview } from '../src/host/files.ts'
 
 it('列出 patch 层、settings、credentials，按层归属标注', async () => {
   const home = mkdtempSync(join(tmpdir(), 'dsh-insight-'))
@@ -65,4 +65,24 @@ it('大文件只读取前 256 KiB，并保持 UTF-8 尾部完整', async () => {
   expect(preview.truncated).toBe(true)
   expect(Buffer.byteLength(preview.content)).toBeLessThanOrEqual(256 * 1024)
   expect(preview.content.endsWith('\uFFFD')).toBe(false)
+})
+
+/**
+ * profile 名的判据。线上装 0.3.0 踩到的就是这一条：市场热挂载的插件跑在它自己那一层
+ * loader 里，`ctx.baseUrl` 指向 `<profile>/.dsh-market/`，照末段取名就成了 `.dsh-market`，
+ * 随后 loadProfile 报「profile ".dsh-market" does not exist」，整个面板加载失败。
+ */
+const ctxWith = (baseUrl: string | undefined, home = '/home/u/.dsh') =>
+  ({ baseUrl, dshHomePath: () => home }) as unknown as Parameters<typeof profileNameOf>[0]
+
+it('profile 名按 home 反推：热挂载目录、深层 node_modules 都能还原', () => {
+  expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/desktop/'))).toBe('desktop')
+  expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/desktop/.dsh-market/'))).toBe('desktop')
+  expect(profileNameOf(ctxWith('file:///home/u/.dsh/profiles/web/.dsh-market/node_modules/pkg/'))).toBe('web')
+})
+
+it('落在 profiles 之外退回末段；baseUrl 认不出就当 web', () => {
+  expect(profileNameOf(ctxWith('file:///opt/custom/layout/web2/'))).toBe('web2')
+  expect(profileNameOf(ctxWith(undefined))).toBe('web')
+  expect(profileNameOf(ctxWith('这不是 URL'))).toBe('web')
 })
