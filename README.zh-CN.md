@@ -40,7 +40,7 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
 
 - 每个 bundle 自带的 `cordis.patch.yml`（`@deepseek-ai/dsh-base`、市场包、你自己的插件）
 - profile 自己的补丁层 `$DSH_HOME/profiles/<name>/cordis.patch.yml`
-- `$DSH_HOME/settings.yaml`——模型供应商、默认模型、权限预设
+- `$DSH_HOME/settings.yaml`——旧版 dsh 的设置文件；0.1.7 首次启动时导入一次并改名为 `settings.yaml.imported`，所以只在文件存在时列出
 - `$DSH_HOME/.credentials.yaml` 与环境变量
 
 最后哪些留下来，由 patch 语义（按 id 插入 / 覆盖 / 禁用）和 cordis loader 实际启动的结果共同决定。**任何单个文件都给不出答案**，于是「这个插件为什么没跑起来」「这个模型是哪来的」就变成在四个文件和一个看不见的运行时之间来回翻。
@@ -153,7 +153,7 @@ dsh plugin --profile web update @gwsbhqt/dsh-insight@latest
 - **文件预览走白名单。** `files/read` 与 `files/open` 只接受 host 自己发现的路径，且在解析出真实路径之后再校验一次。
 - 会离开浏览器的动作只有两个，都要你亲手点：
   - **在编辑器中打开**，对象是白名单里的配置文件或插件目录。
-  - **立即重启**——关掉当前 dsh，按它原来的启动方式再拉起一个（不改任何文件，只换进程）。要点两次才动手；**有会话正在执行时按不动**；检测到 systemd 托管时默认关闭，因为那种部署里重启归守护进程管。`DSH_INSIGHT_ALLOW_RESTART=0` 彻底关掉它，`=1` 强制打开。**跑在 Electron 应用里（DSH Desktop 这类）时一律关掉，`=1` 也打不开**：那种形态下 host 就是应用自己的进程，重启那一下 SIGTERM 发给的是整个应用——用应用自己的重启。这颗按钮不依赖任何其他插件。摘要卡和工作台顶栏各摆一颗（改开关的地方在工作台，而工作台盖住整页，摘要卡那颗够不着），走的是同一套状态与守卫。
+  - **立即重启**——关掉当前 dsh，按它原来的启动方式再拉起一个（不改任何文件，只换进程）。要点两次才动手；**有会话正在执行时按不动**；检测到 systemd 托管时默认关闭，因为那种部署里重启归守护进程管。`DSH_INSIGHT_ALLOW_RESTART=0` 彻底关掉它，`=1` 强制打开。**跑在 Electron 应用里（Electron 桌面应用这类）时一律关掉，`=1` 也打不开**：那种形态下 host 就是应用自己的进程，重启那一下 SIGTERM 发给的是整个应用——用应用自己的重启。这颗按钮不依赖任何其他插件。摘要卡和工作台顶栏各摆一颗（改开关的地方在工作台，而工作台盖住整页，摘要卡那颗够不着），走的是同一套状态与守卫。
 - 工具观察器**只包内存里的 `tools.register`**，不写任何文件，不碰 `node_modules`，也不碰 harness 的安装目录。
 - 「点界面查插件」的两处**运行时**手脚都在浏览器里，都不碰任何文件、不改 dsh 的任何产物：
   - **给 slots 服务的 `register` 包一层**记账（哪块 UI 是谁注册的）。原方法照常执行，之后多写一条 WeakMap；补丁挂在插件生命周期上，卸载即按栈还原。和工具观察器是同一种做法。

@@ -53,7 +53,7 @@ export function detectedSupervisor(
 /**
  * 宿主是不是**跑在别人的进程里**；是就给出那个应用的名字，认不出来返回 null。
  *
- * DSH Desktop 就是这么跑的：dsh host 不是它拉起来的子进程，而是 Electron 主进程**自己**
+ * 有的桌面应用就是这么跑的：dsh host 不是它拉起来的子进程，而是 Electron 主进程**自己**
  * （进程表里只有 Electron 主进程和它的渲染 / GPU 子进程，没有独立的 node dsh）。
  * 这种形态下自助重启每一步都踩空：
  *   - `restartLaunch()` 认不出启动方式（`argv[1]` 是应用入口，不是 `dsh`/`bin.js`），

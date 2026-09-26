@@ -162,8 +162,8 @@ it('未知端点的错误信封带齐 details——少了它浏览器连信封�
 
 it('跑在 Electron 应用里就认出来：host 是那个应用自己的进程，不是它的子进程', () => {
   const electron = { electron: '38.0.0' } as unknown as NodeJS.ProcessVersions
-  expect(embeddedHost(electron, '/Applications/DSH Desktop.app/Contents/MacOS/DSH Desktop')).toBe('DSH Desktop')
-  expect(embeddedHost(electron, 'C:\\Program Files\\DSH Desktop\\DSH Desktop.exe')).toBe('DSH Desktop')
+  expect(embeddedHost(electron, '/Applications/Example Desktop.app/Contents/MacOS/Example Desktop')).toBe('Example Desktop')
+  expect(embeddedHost(electron, 'C:\\Program Files\\Example Desktop\\Example Desktop.exe')).toBe('Example Desktop')
   // 普通 node 进程不认——这道 latch 只针对「host 就是别人的进程」那一种
   expect(embeddedHost({ node: '24.0.0' } as unknown as NodeJS.ProcessVersions, '/usr/local/bin/node')).toBe(null)
 })

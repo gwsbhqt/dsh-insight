@@ -10,7 +10,7 @@
  *
  * 按不动的五种理由分开说，因为用户能做的事完全不同：
  *   有会话在跑 —— 等它跑完，按钮自己会亮；
- *   嵌在别的应用里 —— host 就是那个应用的进程（DSH Desktop 这类），用它自己的重启；
+ *   嵌在别的应用里 —— host 就是那个应用的进程（Electron 桌面应用这类），用它自己的重启；
  *   这台机器不许 —— 等也没用，得去改环境或者让守护进程来重启；
  *   问不到状态 —— 多半是 host 比界面旧，手动重启一次 dsh 就好；
  *   还没问到   —— 刚挂上来，等一下就有了，这时候什么都不该说。
@@ -30,7 +30,7 @@ function restartView(state: ReturnType<typeof useHostRestart>, t: TranslateNS<'d
   const { phase, status, probed, error } = state
   const off = status !== undefined && !status.canRestart
   const supervisor = status?.supervisor
-  // 嵌在别的应用进程里（DSH Desktop 这类）：这里的「重启」等于把那个应用整个关掉
+  // 嵌在别的应用进程里（Electron 桌面应用这类）：这里的「重启」等于把那个应用整个关掉
   const embedded = status?.embeddedIn
   const running = status?.running ?? 0
   const busy = running > 0

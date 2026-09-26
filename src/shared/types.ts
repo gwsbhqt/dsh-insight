@@ -293,7 +293,7 @@ export interface HostStatus {
   /** 认出来的进程守护名（目前只认 systemd）。有值就说明重启该归它管。 */
   supervisor?: string
   /**
-   * 宿主嵌在哪个应用的进程里（DSH Desktop 这类 Electron 应用）。有值时自助重启一律关闭：
+   * 宿主嵌在哪个应用的进程里（Electron 桌面应用这类）。有值时自助重启一律关闭：
    * 这里的「重启」等于把那个应用整个关掉，得用它自己的重启。
    */
   embeddedIn?: string
