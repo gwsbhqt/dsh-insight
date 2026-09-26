@@ -365,3 +365,27 @@ describe('撤回最后一条之后，文件还得是一个列表', () => {
     expect(await patchListProblem(commentsOnly)).toBe('补丁层顶层必须是一个列表')
   })
 })
+
+describe('id 那一行带行尾注释', () => {
+  const COMMENTED = '- id: tool-bash # 先关掉，等沙箱修好\n  disabled: true\n'
+
+  it('认得出这一段：id 不带注释', () => {
+    const lines = COMMENTED.split('\n')
+    expect(idLineOf(lines, topLevelBlocks(lines)[0]!)?.id).toBe('tool-bash')
+    const quoted = '- id: "tool-bash" # 注释\n'.split('\n')
+    expect(idLineOf(quoted, topLevelBlocks(quoted)[0]!)?.id).toBe('tool-bash')
+  })
+
+  it('启用（冗余）时真的摘掉开关，而不是报「没变」', () => {
+    const r = rewritePatch(COMMENTED, 'tool-bash', false, true)
+    expect(r.action).toBe('removed')
+    expect(r.text).not.toContain('disabled: true')
+  })
+
+  it('非冗余的写入改原来那一段，不再追加第二段同 id 的条目', () => {
+    const r = rewritePatch(COMMENTED, 'tool-bash', false, false)
+    expect(r.action).toBe('updated')
+    expect(r.text.match(/^- id: tool-bash/gmu)?.length).toBe(1)
+    expect(r.text).toContain('disabled: false')
+  })
+})

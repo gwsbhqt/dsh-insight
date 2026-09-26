@@ -55,11 +55,17 @@ export function topLevelBlocks(lines: readonly string[]): Block[] {
   return blocks
 }
 
-/** 去掉 YAML 标量外面的引号。 */
-function unquote(value: string): string {
+/**
+ * 取一行里 YAML 标量的值：去掉外面的引号和行尾注释。
+ *
+ * 行尾注释（`- id: tool-bash # 先关掉`）是手写补丁的常见写法。不去掉它，id 就对不上，
+ * 这一段会被当成不存在：启用时报「本来就是启用」却什么都没改，禁用时再追加一段同 id 的条目。
+ */
+function scalarOf(value: string): string {
   const trimmed = value.trim()
-  const quoted = /^(['"])(.*)\1$/u.exec(trimmed)
-  return quoted?.[2] ?? trimmed
+  const quoted = /^(['"])(.*?)\1\s*(?:#.*)?$/u.exec(trimmed)
+  if (quoted !== null) return quoted[2] ?? ''
+  return trimmed.replace(/\s+#.*$/u, '')
 }
 
 /**
@@ -68,10 +74,10 @@ function unquote(value: string): string {
  */
 export function idLineOf(lines: readonly string[], block: Block): { line: number; id: string } | undefined {
   const head = /^-\s+id:\s*(.*)$/u.exec(lines[block.start] ?? '')
-  if (head !== null) return { line: block.start, id: unquote(head[1] ?? '') }
+  if (head !== null) return { line: block.start, id: scalarOf(head[1] ?? '') }
   for (let i = block.start; i < block.end; i += 1) {
     const key = /^\s+id:\s*(.*)$/u.exec(lines[i] ?? '')
-    if (key !== null) return { line: i, id: unquote(key[1] ?? '') }
+    if (key !== null) return { line: i, id: scalarOf(key[1] ?? '') }
   }
   return undefined
 }
